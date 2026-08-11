@@ -1,0 +1,2 @@
+# JS-heavy site rendering (Phase 2 fallback). Needs: playwright install chromium
+playwright==1.49.1
