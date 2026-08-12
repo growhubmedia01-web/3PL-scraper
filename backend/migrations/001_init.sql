@@ -8,7 +8,7 @@ create extension if not exists "pgcrypto";
 create extension if not exists "pg_trgm";
 
 -- ---------------------------------------------------------------------
--- SERVICE CONFIGURATION (§11, §12, §13, §14)
+-- SERVICE CONFIGURATION (section 11, section 12, section 13, section 14)
 -- ---------------------------------------------------------------------
 create table if not exists services (
     id           uuid primary key default gen_random_uuid(),
@@ -71,7 +71,7 @@ create table if not exists service_roles (
 );
 
 -- ---------------------------------------------------------------------
--- GENERIC COMPANY INTELLIGENCE (§15) - shared across all services
+-- GENERIC COMPANY INTELLIGENCE (section 15) - shared across all services
 -- ---------------------------------------------------------------------
 create table if not exists companies (
     id                  uuid primary key default gen_random_uuid(),
@@ -92,7 +92,7 @@ create table if not exists companies (
     status              text not null default 'discovered'
                         check (status in ('discovered','queued','crawling','crawled',
                                           'classified','rejected','error')),
-    rejection_reason    text,                     -- §32: never reprocess blindly
+    rejection_reason    text,                     -- section 32: never reprocess blindly
     discovered_via      text,
     last_crawled_at     timestamptz,
     last_classified_at  timestamptz,
@@ -104,7 +104,7 @@ create index if not exists idx_companies_country on companies(country);
 create index if not exists idx_companies_name_trgm on companies using gin (name gin_trgm_ops);
 
 -- ---------------------------------------------------------------------
--- EVIDENCE (§16, §29)
+-- EVIDENCE (section 16, section 29)
 -- ---------------------------------------------------------------------
 create table if not exists sources (
     id            uuid primary key default gen_random_uuid(),
@@ -144,7 +144,7 @@ create index if not exists idx_crawl_jobs_status on crawl_jobs(status);
 create index if not exists idx_crawl_jobs_company on crawl_jobs(company_id);
 
 -- ---------------------------------------------------------------------
--- SIGNALS (§18, §25) - service-scoped
+-- SIGNALS (section 18, section 25) - service-scoped
 -- ---------------------------------------------------------------------
 create table if not exists signals (
     id           uuid primary key default gen_random_uuid(),
@@ -164,7 +164,7 @@ create index if not exists idx_signals_company_service on signals(company_id, se
 create index if not exists idx_signals_type on signals(signal_type);
 
 -- ---------------------------------------------------------------------
--- OPPORTUNITIES (§19)
+-- OPPORTUNITIES (section 19)
 -- ---------------------------------------------------------------------
 create table if not exists service_opportunities (
     id              uuid primary key default gen_random_uuid(),
@@ -175,7 +175,7 @@ create table if not exists service_opportunities (
     deterministic_score numeric(5,2) not null default 0,
     ai_score        numeric(5,2),
     evidence_score  numeric(5,2) not null default 0,
-    score_breakdown jsonb not null default '[]'::jsonb,  -- §39 traceability
+    score_breakdown jsonb not null default '[]'::jsonb,  -- section 39 traceability
     intent_level    text not null default 'LOW'
                     check (intent_level in ('LOW','POSSIBLE','GOOD','STRONG','HOT')),
     urgency         text check (urgency in ('low','medium','high')),
@@ -187,13 +187,13 @@ create table if not exists service_opportunities (
     last_analyzed   timestamptz,
     created_at      timestamptz not null default now(),
     updated_at      timestamptz not null default now(),
-    unique (company_id, service_id)                      -- §19, §51
+    unique (company_id, service_id)                      -- section 19, section 51
 );
 create index if not exists idx_opps_score  on service_opportunities(score desc);
 create index if not exists idx_opps_intent on service_opportunities(intent_level);
 
 -- ---------------------------------------------------------------------
--- DECISION MAKERS (§20) - NO EMAIL FIELDS, BY DESIGN (§5, §35)
+-- DECISION MAKERS (section 20) - NO EMAIL FIELDS, BY DESIGN (section 5, section 35)
 -- ---------------------------------------------------------------------
 create table if not exists decision_makers (
     id            uuid primary key default gen_random_uuid(),
@@ -223,7 +223,7 @@ create table if not exists suppressions (
 );
 
 -- ---------------------------------------------------------------------
--- OPS: caching, runs, metrics (§49, §56)
+-- OPS: caching, runs, metrics (section 49, section 56)
 -- ---------------------------------------------------------------------
 create table if not exists search_cache (
     id         uuid primary key default gen_random_uuid(),
@@ -260,7 +260,7 @@ create table if not exists api_usage (
 );
 create index if not exists idx_api_usage_created on api_usage(created_at);
 
--- Human labels for §66 validation
+-- Human labels for section 66 validation
 create table if not exists lead_reviews (
     id             uuid primary key default gen_random_uuid(),
     opportunity_id uuid not null references service_opportunities(id) on delete cascade,

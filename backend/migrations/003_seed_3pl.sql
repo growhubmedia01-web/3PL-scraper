@@ -1,5 +1,5 @@
 -- =====================================================================
--- 3PL SERVICE CONFIGURATION (§21, §24, §26)
+-- 3PL SERVICE CONFIGURATION (section 21, section 24, section 26)
 -- This is the ONLY file in the system that knows what 3PL is.
 -- Adding a second service = adding another file like this one.
 -- =====================================================================
@@ -35,7 +35,7 @@ on conflict (slug) do update
   set config = excluded.config, description = excluded.description;
 
 -- ---------------------------------------------------------------------
--- SIGNALS + WEIGHTS (§24, §26)
+-- SIGNALS + WEIGHTS (section 24, section 26)
 -- ---------------------------------------------------------------------
 insert into service_signals
   (service_id, signal_type, signal_name, description, weight, decay_days, max_occurrences)
@@ -63,7 +63,7 @@ on conflict (service_id, signal_type) do update
       description = excluded.description;
 
 -- ---------------------------------------------------------------------
--- KEYWORDS (§13). A keyword alone must never qualify a company.
+-- KEYWORDS (section 13). A keyword alone must never qualify a company.
 -- ---------------------------------------------------------------------
 insert into service_keywords (service_id, keyword, category, signal_type, weight)
 select s.id, v.keyword, v.category, v.signal_type, v.weight
@@ -164,7 +164,7 @@ where s.slug = '3pl'
 on conflict (service_id, keyword, category) do update set weight = excluded.weight;
 
 -- ---------------------------------------------------------------------
--- DISCOVERY QUERIES (§14)
+-- DISCOVERY QUERIES (section 14)
 -- ---------------------------------------------------------------------
 insert into discovery_queries (service_id, query, country, priority)
 select s.id, v.query, v.country, v.priority
@@ -211,7 +211,7 @@ where s.slug = '3pl'
     where dq.service_id = s.id and dq.query = v.query);
 
 -- ---------------------------------------------------------------------
--- DECISION MAKER ROLE PRIORITY (§21)
+-- DECISION MAKER ROLE PRIORITY (section 21)
 -- ---------------------------------------------------------------------
 insert into service_roles (service_id, title_pattern, role_priority)
 select s.id, v.pattern, v.prio

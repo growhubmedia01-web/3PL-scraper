@@ -25,6 +25,19 @@ def sql_str(value: str | None) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def _assert_ascii(text: str, label: str) -> str:
+    """Generated SQL must be pure ASCII.
+
+    These files get opened in editors that re-save as cp1252, which turns an
+    em-dash into 0x97 and makes the file undecodable as UTF-8. Staying ASCII
+    removes the failure mode entirely.
+    """
+    bad = sorted({c for c in text if ord(c) > 127})
+    if bad:
+        raise ValueError(f"{label} contains non-ASCII characters: {bad}")
+    return text
+
+
 def build() -> Path:
     queries = build_library()
     info = stats(queries)
@@ -104,7 +117,8 @@ group by priority order by priority;
                  f"""tier3 {info['by_tier'].get(3, 0)}, tier4 {info['by_tier'].get(4, 0)}
 """)
 
-    OUT.write_text("".join(parts))
+    OUT.write_text(_assert_ascii("".join(parts), OUT.name),
+                   encoding="utf-8", newline="\n")
     return OUT
 
 

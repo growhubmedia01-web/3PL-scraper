@@ -16,11 +16,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 MIGRATIONS = Path(__file__).resolve().parent.parent / "migrations"
 
 PARTS = [
-    ("001_init.sql", "SCHEMA — tables, indexes, triggers"),
-    ("002_rls.sql", "ROW LEVEL SECURITY — policies"),
-    ("003_seed_3pl.sql", "SEED — the 3PL service configuration"),
+    ("001_init.sql", "SCHEMA - tables, indexes, triggers"),
+    ("002_rls.sql", "ROW LEVEL SECURITY - policies"),
+    ("003_seed_3pl.sql", "SEED - the 3PL service configuration"),
     ("004_broaden_beyond_ecommerce.sql",
-     "BROADEN — wholesale, manufacturing, retail, subscription segments"),
+     "BROADEN - wholesale, manufacturing, retail, subscription segments"),
 ]
 
 HEADER = """-- =====================================================================
@@ -67,6 +67,19 @@ def expected_counts() -> str:
             f"{c['queries']} queries, {c['roles']} roles")
 
 
+def _assert_ascii(text: str, label: str) -> str:
+    """Generated SQL must be pure ASCII.
+
+    These files get opened in editors that re-save as cp1252, which turns an
+    em-dash into 0x97 and makes the file undecodable as UTF-8. Staying ASCII
+    removes the failure mode entirely.
+    """
+    bad = sorted({c for c in text if ord(c) > 127})
+    if bad:
+        raise ValueError(f"{label} contains non-ASCII characters: {bad}")
+    return text
+
+
 def build() -> Path:
     chunks = [HEADER.format(stamp=f"{datetime.now(timezone.utc):%Y-%m-%d}")]
     for name, label in PARTS:
@@ -80,7 +93,8 @@ def build() -> Path:
     chunks.append(FOOTER.format(expected=expected_counts()))
 
     out = MIGRATIONS / "ALL_IN_ONE.sql"
-    out.write_text("".join(chunks))
+    out.write_text(_assert_ascii("".join(chunks), out.name),
+                   encoding="utf-8", newline="\n")
     return out
 
 

@@ -137,12 +137,10 @@ def run_discovery(db: Session, config: ServiceConfig,
     db.flush()
 
     if not search.has_provider:
-        run.status = "failed"
-        run.error = ("No search provider configured. Set SERPER_API_KEY, "
-                     "SERPAPI_KEY or BRAVE_SEARCH_API_KEY in backend/.env")
-        run.completed_at = datetime.now(timezone.utc)
-        db.flush()
-        log.error(run.error)
+        error = ("No search provider configured. Set SERPER_API_KEY, "
+                 "SERPAPI_KEY or BRAVE_SEARCH_API_KEY in backend/.env")
+        log.error(error)
+        _finalize_run(db, run, config, stats, status="failed", error=error)
         return stats
 
     queries = [q for q in config.queries
@@ -162,9 +160,11 @@ def run_discovery(db: Session, config: ServiceConfig,
         log.warning("No enabled discovery queries for service '%s'"
                     "%s", config.slug, f" at tier {tier}" if tier else "")
 
-    known = _existing_domains(db)
-
     try:
+        # Inside the try: a schema-drift error here (missing column) must be
+        # recorded as a failed run, not raised to the caller as a 500.
+        known = _existing_domains(db)
+
         for query in queries:
             if stats.companies_created >= limit:
                 log.info("Discovery limit reached (%d companies)", limit)
@@ -207,11 +207,14 @@ def run_discovery(db: Session, config: ServiceConfig,
                     status="queued",
                     discovered_via=f"search:{query.query}",
                 )
-                db.add(company)
+                # SAVEPOINT, not a bare flush: a unique-domain collision must
+                # roll back this one insert, never the whole run. A plain
+                # db.rollback() here would discard every company found so far.
                 try:
-                    db.flush()
+                    with db.begin_nested():
+                        db.add(company)
+                        db.flush()
                 except Exception:      # concurrent insert on the unique domain
-                    db.rollback()
                     stats.duplicates_skipped += 1
                     known.add(domain)
                     continue
@@ -222,16 +225,48 @@ def run_discovery(db: Session, config: ServiceConfig,
 
         run.status = "completed"
     except Exception as exc:
-        run.status = "failed"
-        run.error = str(exc)
+        error = f"{type(exc).__name__}: {exc}"
         log.exception("Discovery run failed")
-    finally:
-        run.stats = stats.as_dict()
-        run.completed_at = datetime.now(timezone.utc)
-        db.flush()
+        _finalize_run(db, run, config, stats, status="failed", error=error)
+        return stats
 
+    _finalize_run(db, run, config, stats, status="completed")
     log.info("Discovery complete: %s", stats.as_dict())
     return stats
+
+
+def _finalize_run(db: Session, run: PipelineRun, config: ServiceConfig,
+                  stats: DiscoveryStats, status: str,
+                  error: str | None = None) -> None:
+    """Record the run outcome, even when the transaction is already broken.
+
+    Postgres aborts the whole transaction on any failed statement, so once
+    something goes wrong every subsequent write - including the one that
+    records what went wrong - fails with InFailedSqlTransaction. Writing the
+    outcome then requires a rollback and a fresh transaction first.
+    """
+    payload = dict(
+        service_id=config.id, run_type="discovery", status=status,
+        stats=stats.as_dict(), error=error,
+        completed_at=datetime.now(timezone.utc),
+    )
+    try:
+        run.status = status
+        run.error = error
+        run.stats = payload["stats"]
+        run.completed_at = payload["completed_at"]
+        db.flush()
+        return
+    except Exception:
+        log.warning("Could not update the pipeline run in the current "
+                    "transaction; retrying on a clean one.")
+
+    try:
+        db.rollback()                       # clear the aborted transaction
+        db.add(PipelineRun(**payload))
+        db.commit()
+    except Exception:
+        log.exception("Failed to record the discovery run outcome")
 
 
 def add_company_manually(db: Session, url_or_domain: str,

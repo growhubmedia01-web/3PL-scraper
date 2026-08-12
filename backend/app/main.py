@@ -72,6 +72,19 @@ def health():
 @app.on_event("startup")
 def on_startup() -> None:
     log.info("Environment: %s", settings.environment)
+
+    # Fail loudly and specifically if the database is behind the code.
+    # Without this the first symptom is an UndefinedColumn error thrown from
+    # inside a background task, which is far harder to trace back.
+    if settings.db_configured:
+        from app.db import engine
+        from app.schema_check import check_schema
+        report = check_schema(engine)
+        if not report.ok:
+            for line in report.summary().splitlines():
+                log.error(line)
+        else:
+            log.info("Database schema matches the application.")
     if not settings.db_configured:
         log.warning("DATABASE_URL still contains YOUR_DB_PASSWORD - set your "
                     "Supabase database password in backend/.env")

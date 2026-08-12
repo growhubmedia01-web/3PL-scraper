@@ -1,5 +1,5 @@
 -- =====================================================================
--- Row Level Security (§53)
+-- Row Level Security (section 53)
 -- Backend uses the service_role key and bypasses RLS.
 -- The frontend uses the publishable/anon key and gets read-only access
 -- to non-personal tables only. Decision makers stay server-side.

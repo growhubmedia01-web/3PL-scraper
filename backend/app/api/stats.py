@@ -128,11 +128,21 @@ def health(db: Session = Depends(get_db)):
     except Exception as exc:
         db_ok, db_error = False, str(exc)[:300]
 
+    from app.db import engine
+    from app.schema_check import check_schema
+    report = check_schema(engine)
+
     search = SearchService(db)
     llm = LLMService(db)
     return {
         "database": {"ok": db_ok, "error": db_error,
                      "url_configured": settings.db_configured},
+        "schema": {
+            "ok": report.ok,
+            "missing_tables": report.missing_tables,
+            "missing_columns": [f"{t}.{c}" for t, c in report.missing_columns],
+            "run_migrations": report.required_migrations(),
+        },
         "search": {"ok": search.has_provider,
                    "providers": [p.name for p in search.chain]},
         "llm": {"ok": llm.available, "providers": [p.name for p in llm.chain]},
