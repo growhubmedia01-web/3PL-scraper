@@ -138,7 +138,7 @@ export default function Dashboard() {
 
         <div className="card p-4">
           <h2 className="font-semibold text-sm mb-3">Business models</h2>
-          {stats.by_business_model.length === 0
+          {!stats.by_business_model || stats.by_business_model.length === 0
             ? <p className="text-sm text-ink-400">Nothing classified yet.</p>
             : (
               <div className="flex flex-wrap gap-1.5">

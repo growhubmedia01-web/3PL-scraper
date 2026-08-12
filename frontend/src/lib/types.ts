@@ -16,7 +16,7 @@ export interface DashboardStats {
   by_country: { country: string; count: number }[]
   by_intent: { intent_level: string; count: number }[]
   by_signal: { signal_type: string; count: number }[]
-  by_business_model: { business_model: string; count: number }[]
+  by_business_model?: { business_model: string; count: number }[]
 }
 
 export interface Lead {
