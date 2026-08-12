@@ -196,7 +196,10 @@ def _detect_physical(pages: list[ExtractedPage],
     if has_returns_page:
         positive.append("returns policy page")
 
-    physical = len(positive) >= 2 and len(positive) > len(negative)
+    # 1 physical signal is enough — many brands sell through retailers
+    # (wholesale, FMCG, food & beverage, cosmetics) without a direct store
+    # but still ship physical goods and need 3PL.
+    physical = len(positive) >= 1 and len(positive) > len(negative)
     if is_ecommerce and (has_shipping_page or has_returns_page):
         physical = True
     return physical, positive[:8]
@@ -297,10 +300,13 @@ def classify(company: Company, pages: list[ExtractedPage]) -> Classification:
     }
 
     # §32: reject early, and always record why so we never reprocess blindly.
-    if not is_ecom and not is_physical:
+    # Any brand that ships physical goods qualifies — ecommerce stores, brands
+    # that sell through retailers, wholesale, FMCG, food & beverage, cosmetics,
+    # sporting goods, etc. They all need 3PL services.
+    if not is_physical:
         result.relevant = False
         result.rejection_reason = (
-            "no ecommerce or physical-product evidence found")
+            "no physical-product evidence found — likely a SaaS or service business")
     return result
 
 

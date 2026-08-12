@@ -18,7 +18,7 @@ values (
     'decision_maker_threshold', 80,
     'decision_maker_optional_threshold', 60,
     'ai_analysis_min_raw_score', 25,
-    'required_signals', jsonb_build_array('ecommerce','physical_products'),
+    'required_signals', jsonb_build_array('physical_products'),
     'signal_page_affinity', jsonb_build_object(
         'existing_3pl', jsonb_build_array('shipping','returns','about','website','careers')),
     'refresh_days', jsonb_build_object(
@@ -180,7 +180,26 @@ from services s,
  ('UK ecommerce brand expanding to USA', 'GB', 1),
  ('Kickstarter product shipping to backers', null, 2),
  ('new Shopify store United Kingdom', 'GB', 3),
- ('new Shopify store Australia', 'AU', 3)
+ ('new Shopify store Australia', 'AU', 3),
+ -- broader physical product brands (non-ecommerce)
+ ('new food and beverage brand launch', null, 1),
+ ('new FMCG brand', null, 1),
+ ('new consumer goods brand', null, 1),
+ ('new CPG brand launch', null, 1),
+ ('new beverage brand', null, 2),
+ ('new snack brand launch', null, 2),
+ ('new beauty brand launch', null, 2),
+ ('new skincare brand launch', null, 2),
+ ('new supplement brand', null, 2),
+ ('new pet food brand', null, 2),
+ ('new homeware brand launch', null, 2),
+ ('new clothing brand launch', null, 2),
+ ('new apparel brand', null, 2),
+ ('physical product brand raising seed funding', null, 1),
+ ('consumer goods company hiring operations manager', null, 1),
+ ('wholesale brand expanding internationally', null, 2),
+ ('new hardware product launch', null, 2),
+ ('new electronics brand', null, 2)
 ) as v(query, country, priority)
 where s.slug = '3pl'
   and not exists (                       -- idempotent: safe to re-run
