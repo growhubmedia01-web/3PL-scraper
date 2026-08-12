@@ -2,23 +2,29 @@ name: 3PL Autopilot Cron
 
 on:
   schedule:
-    # Runs every hour at minute 0. 
-    # Change to '*/30 * * * *' for every 30 minutes, etc.
+    # Runs every hour at minute 0.
     - cron: '0 * * * *'
-  workflow_dispatch: # This allows you to also trigger it manually from the GitHub UI
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions UI
 
 jobs:
   run-autopilot:
     runs-on: ubuntu-latest
     steps:
+      - name: Wake up Render service
+        run: |
+          curl --max-time 60 https://threepl-scraper.onrender.com/health || true
+
       - name: Trigger Discovery (Find new companies)
         run: |
-          curl -X POST https://threepl-scraper.onrender.com/api/discovery/run \
+          curl --max-time 60 -X POST https://threepl-scraper.onrender.com/api/discovery/run \
             -H "Content-Type: application/json" \
             -d '{"limit": 25}'
-            
-      - name: Process Queue (Crawl & Analyze)
+
+      - name: Wait for discovery to complete
+        run: sleep 30
+
+      - name: Process Queue (Crawl and Score companies)
         run: |
-          curl -X POST "https://threepl-scraper.onrender.com/api/pipeline/process-queue?limit=25" \
+          curl --max-time 120 -X POST "https://threepl-scraper.onrender.com/api/pipeline/process-queue?limit=25" \
             -H "Content-Type: application/json" \
             -d '{}'
