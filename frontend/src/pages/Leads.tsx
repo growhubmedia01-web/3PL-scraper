@@ -8,6 +8,16 @@ import {
 } from '../components/ui'
 
 const INTENTS = ['HOT', 'STRONG', 'GOOD', 'POSSIBLE', 'LOW']
+const BUSINESS_MODELS = [
+  { value: 'dtc', label: 'Direct to consumer' },
+  { value: 'wholesale', label: 'Wholesale / B2B' },
+  { value: 'manufacturer', label: 'Manufacturer' },
+  { value: 'retail', label: 'Retail / stockists' },
+  { value: 'marketplace', label: 'Marketplace seller' },
+  { value: 'subscription', label: 'Subscription' },
+  { value: 'importer', label: 'Importer' },
+  { value: 'multi_channel', label: 'Multi-channel' },
+]
 const SORTS = [
   { value: 'score', label: 'Highest score' },
   { value: 'newest', label: 'Newest' },
@@ -27,6 +37,7 @@ export default function Leads() {
     intent: params.get('intent') || undefined,
     urgency: params.get('urgency') || undefined,
     platform: params.get('platform') || undefined,
+    business_model: params.get('business_model') || undefined,
     signal: params.get('signal') || undefined,
     min_score: params.get('min_score') ? Number(params.get('min_score')) : undefined,
     has_decision_maker: params.get('has_dm') === '1' ? true : undefined,
@@ -58,7 +69,8 @@ export default function Leads() {
   }
 
   const activeCount = ['q', 'country', 'intent', 'urgency', 'platform',
-    'signal', 'min_score', 'has_dm', 'days'].filter((k) => params.get(k)).length
+    'business_model', 'signal', 'min_score', 'has_dm', 'days']
+    .filter((k) => params.get(k)).length
 
   return (
     <div className="space-y-4">
@@ -97,6 +109,16 @@ export default function Leads() {
             <input className="input" placeholder="GB" maxLength={2}
               defaultValue={params.get('country') || ''}
               onBlur={(e) => update('country', e.target.value.toUpperCase())} />
+          </div>
+          <div>
+            <label className="label">Business model</label>
+            <select className="input" value={params.get('business_model') || ''}
+              onChange={(e) => update('business_model', e.target.value)}>
+              <option value="">All</option>
+              {BUSINESS_MODELS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="label">Min score</label>
@@ -178,6 +200,9 @@ function LeadRow({ lead }: { lead: Lead }) {
             {lead.company_name || lead.domain}
           </span>
           <IntentBadge level={lead.intent_level} />
+          {lead.business_model && (
+            <Chip tone="blue">{humanizeSignal(lead.business_model)}</Chip>
+          )}
           {lead.urgency && <Chip tone="red">{lead.urgency} urgency</Chip>}
         </div>
         <div className="text-sm text-ink-500 mt-0.5">

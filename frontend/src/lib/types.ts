@@ -16,12 +16,14 @@ export interface DashboardStats {
   by_country: { country: string; count: number }[]
   by_intent: { intent_level: string; count: number }[]
   by_signal: { signal_type: string; count: number }[]
+  by_business_model: { business_model: string; count: number }[]
 }
 
 export interface Lead {
   id: string; company_id: string; company_name: string | null
   domain: string; website: string | null; country: string | null
   industry: string | null; platform: string | null
+  business_model: string | null
   score: number; intent_level: IntentLevel; urgency: string | null
   likely_need: string[]; signal_types: string[]
   signal_count: number; evidence_count: number
@@ -63,7 +65,9 @@ export interface Company {
   id: string; name: string | null; domain: string; website: string | null
   country: string | null; industry: string | null; description: string | null
   is_ecommerce: boolean | null; is_physical_product: boolean | null
-  platform: string | null; status: string; rejection_reason: string | null
+  platform: string | null; business_model: string | null
+  sales_channels: string[]
+  status: string; rejection_reason: string | null
   discovered_via: string | null; last_crawled_at: string | null
   created_at: string
 }

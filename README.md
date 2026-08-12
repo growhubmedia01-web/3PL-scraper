@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Configurable B2B Intent Intelligence & Lead Discovery Platform
 
 **V1 service: Third-Party Logistics (3PL)**
@@ -365,6 +364,3 @@ a separate service — it will drive your hosting bill more than any API.
    don't, tune weights in `service_signals` rather than changing code.
 4. Run discovery, label ~100 leads in the UI, then measure HOT/STRONG precision
    before adding a second service.
-=======
-# 3PL-scraper
->>>>>>> 29488e56206cd7a8994f9b5da41ee51af614a728

@@ -14,8 +14,13 @@ from pathlib import Path
 
 import pytest
 
+from scripts.sql_parse import (
+    SEED_FILES, collect, split_fields, unquote, values_rows,
+)
+
 MIGRATIONS = Path(__file__).resolve().parent.parent / "migrations"
 SEED_SQL = MIGRATIONS / "003_seed_3pl.sql"
+BROADEN_SQL = MIGRATIONS / "004_broaden_beyond_ecommerce.sql"
 INIT_SQL = MIGRATIONS / "001_init.sql"
 RLS_SQL = MIGRATIONS / "002_rls.sql"
 ALL_IN_ONE = MIGRATIONS / "ALL_IN_ONE.sql"
@@ -43,29 +48,35 @@ def _values_block(sql: str, marker: str) -> str:
 
 
 def _rows(block: str) -> list[list[str]]:
-    return [
-        [f.strip().strip("'") for f in re.split(r",(?![^']*')", row)]
-        for row in re.findall(r"\(([^()]*)\)", block)
-    ]
+    return [[f.strip().strip("'") for f in split_fields(row)]
+            for row in re.findall(r"\(([^()]*)\)", block)]
 
 
+@pytest.mark.parametrize("seed_file", SEED_FILES)
 @pytest.mark.parametrize("table,marker,key_idx", UNIQUE_CONSTRAINTS)
 def test_no_duplicate_constrained_values(table: str, marker: str,
-                                         key_idx: tuple[int, ...]):
-    """A single INSERT must not propose the same constrained values twice."""
-    sql = SEED_SQL.read_text()
-    rows = _rows(_values_block(sql, marker))
-    keys = [tuple(r[i] for i in key_idx) for r in rows if len(r) > max(key_idx)]
+                                         key_idx: tuple[int, ...],
+                                         seed_file: str):
+    """A single INSERT must not propose the same constrained values twice.
+
+    Checked per file: each migration is its own statement, so duplicates
+    only matter within one file.
+    """
+    sql = (MIGRATIONS / seed_file).read_text()
+    rows = values_rows(sql, marker)
+    keys = [tuple(r[i].strip("'") for i in key_idx)
+            for r in rows if len(r) > max(key_idx)]
     duplicates = {k: c for k, c in Counter(keys).items() if c > 1}
     assert not duplicates, (
-        f"{table} has duplicate rows within one INSERT: {duplicates}. "
-        f"Postgres will raise 'ON CONFLICT DO UPDATE command cannot affect "
-        f"row a second time'.")
+        f"{seed_file}: {table} has duplicate rows within one INSERT: "
+        f"{duplicates}. Postgres will raise 'ON CONFLICT DO UPDATE command "
+        f"cannot affect row a second time'.")
 
 
-def test_every_insert_is_idempotent():
+@pytest.mark.parametrize("seed_file", SEED_FILES)
+def test_every_insert_is_idempotent(seed_file: str):
     """Re-running the seed must not duplicate rows or error."""
-    sql = SEED_SQL.read_text()
+    sql = (MIGRATIONS / seed_file).read_text()
     for match in re.finditer(r"insert into (\w+)", sql):
         nxt = sql.find("insert into", match.end())
         segment = sql[match.start(): nxt if nxt > 0 else len(sql)]
@@ -89,7 +100,7 @@ def test_foreign_keys_target_tables_that_exist():
 
 
 def test_dollar_quotes_and_parens_are_balanced():
-    for path in (INIT_SQL, RLS_SQL, SEED_SQL, ALL_IN_ONE):
+    for path in (INIT_SQL, RLS_SQL, SEED_SQL, BROADEN_SQL, ALL_IN_ONE):
         code = "\n".join(l for l in path.read_text().splitlines()
                          if not l.strip().startswith("--"))
         assert len(re.findall(r"\$\$", code)) % 2 == 0, f"{path.name}: unbalanced $$"
@@ -99,7 +110,7 @@ def test_dollar_quotes_and_parens_are_balanced():
 def test_all_in_one_is_current():
     """ALL_IN_ONE.sql must contain the current contents of its three sources."""
     combined = ALL_IN_ONE.read_text()
-    for path in (INIT_SQL, RLS_SQL, SEED_SQL):
+    for path in (INIT_SQL, RLS_SQL, SEED_SQL, BROADEN_SQL):
         body = path.read_text().strip()
         assert body in combined, (
             f"ALL_IN_ONE.sql is stale relative to {path.name}. "
@@ -154,7 +165,9 @@ def test_on_conflict_targets_match_a_real_constraint():
     specification'."""
     declared = _declared_unique_constraints()
     problems = []
-    for table, segment in _insert_segments(SEED_SQL.read_text()):
+    segments = [seg for name in SEED_FILES
+                for seg in _insert_segments((MIGRATIONS / name).read_text())]
+    for table, segment in segments:
         match = re.search(r"on conflict \(([^)]+)\)", segment)
         if not match:
             continue
@@ -169,7 +182,8 @@ def test_every_insert_segment_is_guarded():
     """Checked per-statement, so an unguarded INSERT can't hide behind the
     next statement's guard."""
     unguarded = [
-        table for table, segment in _insert_segments(SEED_SQL.read_text())
+        f"{name}:{table}" for name in SEED_FILES
+        for table, segment in _insert_segments((MIGRATIONS / name).read_text())
         if "on conflict" not in segment and "not exists" not in segment
     ]
     assert not unguarded, f"INSERTs with no idempotency guard: {unguarded}"
@@ -184,28 +198,25 @@ def test_python_seed_does_not_contradict_the_sql_seed():
     """
     from scripts.seed import KEYWORDS, ROLES, SIGNALS
 
-    sql = SEED_SQL.read_text()
-
     sql_keywords = {
-        (r[0], r[1]): r[2]
-        for r in _rows(_values_block(sql, "insert into service_keywords"))
-        if len(r) > 2
+        (unquote(r[0]), unquote(r[1])): unquote(r[2])
+        for r in collect("keywords") if len(r) > 2
     }
     sql_signals = {
-        r[0]: r[3]
-        for r in _rows(_values_block(sql, "insert into service_signals"))
-        if len(r) > 3
+        unquote(r[0]): unquote(r[3])
+        for r in collect("signals") if len(r) > 3
     }
     sql_roles = {
-        r[0]: r[1]
-        for r in _rows(_values_block(sql, "insert into service_roles"))
-        if len(r) > 1
+        unquote(r[0]): unquote(r[1])
+        for r in collect("roles") if len(r) > 1
     }
 
     conflicts = []
     for keyword, category, signal_type, _weight in KEYWORDS:
-        sql_signal = sql_keywords.get((keyword, category))
-        if sql_signal is not None and sql_signal != (signal_type or ""):
+        if (keyword, category) not in sql_keywords:
+            continue
+        sql_signal = sql_keywords[(keyword, category)]
+        if sql_signal != signal_type:
             conflicts.append(
                 f"keyword {keyword!r}: python={signal_type!r} sql={sql_signal!r}")
 

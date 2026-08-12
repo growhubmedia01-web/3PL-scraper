@@ -175,6 +175,10 @@ class Company(Base, TimestampMixin):
     founded_year: Mapped[int | None] = mapped_column(Integer)
     currencies: Mapped[list] = mapped_column(JSONType, default=list)
     languages: Mapped[list] = mapped_column(JSONType, default=list)
+    # What kind of business is this? dtc | wholesale | manufacturer |
+    # retail | marketplace | subscription | importer | multi_channel
+    business_model: Mapped[str | None] = mapped_column(Text)
+    sales_channels: Mapped[list] = mapped_column(JSONType, default=list)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="discovered")
     rejection_reason: Mapped[str | None] = mapped_column(Text)
     discovered_via: Mapped[str | None] = mapped_column(Text)

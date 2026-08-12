@@ -17,9 +17,10 @@ from app.db import get_db, session_scope
 from app.engine import pipeline as pipeline_engine
 from app.engine.discovery import add_company_manually, queued_companies, run_discovery
 from app.engine.service_config import load_service_config
-from app.models import Company, PipelineRun
+from app.models import Company, DiscoveryQuery, PipelineRun
 from app.schemas import (
-    AnalyzeRequest, DiscoveryRunRequest, ManualCompanyRequest, TaskAccepted,
+    AnalyzeRequest, DiscoveryRunRequest, ManualCompanyRequest,
+    QueryLibraryStats, TaskAccepted,
 )
 
 log = logging.getLogger(__name__)
@@ -45,10 +46,12 @@ def _dispatch(task_name: str, background: BackgroundTasks,
 # local runners (used when Celery is not available)
 # ---------------------------------------------------------------------
 def _local_discovery(service_slug: str, limit: int | None,
-                     country: str | None) -> None:
+                     country: str | None, tier: int | None = None,
+                     max_queries: int | None = None) -> None:
     with session_scope() as db:
         config = load_service_config(db, service_slug)
-        run_discovery(db, config, limit=limit, country=country)
+        run_discovery(db, config, limit=limit, country=country,
+                      tier=tier, max_queries=max_queries)
 
 
 def _local_process_company(company_id: str, service_slug: str,
@@ -85,15 +88,56 @@ def trigger_discovery(payload: DiscoveryRunRequest,
 
     if not payload.run_async:
         stats = run_discovery(db, config, limit=payload.limit,
-                              country=payload.country)
+                              country=payload.country, tier=payload.tier,
+                              max_queries=payload.max_queries)
         db.commit()
         return TaskAccepted(message="Discovery complete", result=stats.as_dict())
 
     from app.workers import tasks
     task_id = _dispatch("discovery", background, tasks.discover_companies,
-                        _local_discovery, slug, payload.limit, payload.country)
-    return TaskAccepted(task_id=task_id,
-                        message=f"Discovery started for service '{slug}'")
+                        _local_discovery, slug, payload.limit,
+                        payload.country, payload.tier, payload.max_queries)
+    tier_note = f" tier {payload.tier}" if payload.tier else ""
+    return TaskAccepted(
+        task_id=task_id,
+        message=f"Discovery started for '{slug}'{tier_note} "
+                f"({payload.max_queries or settings.max_queries_per_discovery_run} "
+                f"queries max)")
+
+
+@router.get("/discovery/queries", response_model=QueryLibraryStats)
+def query_library_stats(service: str | None = None,
+                        db: Session = Depends(get_db)):
+    """How big is the query library, and what would a full pass cost?"""
+    from sqlalchemy import func
+
+    from app.models import Service
+    slug = service or settings.default_service_slug
+    svc = db.execute(
+        select(Service).where(Service.slug == slug)).scalar_one_or_none()
+    if svc is None:
+        raise HTTPException(404, f"Service '{slug}' not found")
+
+    rows = db.execute(
+        select(DiscoveryQuery.priority, func.count(DiscoveryQuery.id),
+               func.count(DiscoveryQuery.last_run_at))
+        .where(DiscoveryQuery.service_id == svc.id)
+        .group_by(DiscoveryQuery.priority)
+        .order_by(DiscoveryQuery.priority)
+    ).all()
+
+    total = sum(n for _, n, _ in rows)
+    never_run = sum(n - run for _, n, run in rows)
+    enabled = db.execute(
+        select(func.count(DiscoveryQuery.id))
+        .where(DiscoveryQuery.service_id == svc.id,
+               DiscoveryQuery.enabled.is_(True))).scalar_one()
+
+    return QueryLibraryStats(
+        total=total, enabled=enabled, never_run=never_run,
+        by_tier=[{"tier": t, "queries": n, "run": r, "never_run": n - r}
+                 for t, n, r in rows],
+        estimated_serper_credits_full_pass=total)
 
 
 @router.post("/crawl/{company_id}", response_model=TaskAccepted)

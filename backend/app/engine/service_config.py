@@ -108,6 +108,21 @@ class ServiceConfig:
                                          settings.ai_analysis_min_raw_score))
 
     @property
+    def query_exclusion_terms(self) -> list[str]:
+        """Negative operators appended to every discovery query.
+
+        Every negative term costs recall, so this stays short and lives in
+        config rather than code so it can be tuned against real results.
+        """
+        return list(self.raw_config.get("query_exclusion_terms") or [])
+
+    @property
+    def excluded_business_types(self) -> list[str]:
+        """Business types rejected at classification even if they slip past
+        the search filters - 3PLs, agencies, SaaS, professional services."""
+        return list(self.raw_config.get("excluded_business_types") or [])
+
+    @property
     def page_affinity(self) -> dict[str, set[str]]:
         """Which page types make a keyword hit meaningful for each signal.
         Falls back to generic defaults; services can override or extend."""

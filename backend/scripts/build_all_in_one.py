@@ -19,6 +19,8 @@ PARTS = [
     ("001_init.sql", "SCHEMA — tables, indexes, triggers"),
     ("002_rls.sql", "ROW LEVEL SECURITY — policies"),
     ("003_seed_3pl.sql", "SEED — the 3PL service configuration"),
+    ("004_broaden_beyond_ecommerce.sql",
+     "BROADEN — wholesale, manufacturing, retail, subscription segments"),
 ]
 
 HEADER = """-- =====================================================================
@@ -33,6 +35,7 @@ HEADER = """-- =================================================================
 --
 --  GENERATED FILE - do not edit directly.
 --  Source: 001_init.sql + 002_rls.sql + 003_seed_3pl.sql
+--          + 004_broaden_beyond_ecommerce.sql
 --  Rebuild: python -m scripts.build_all_in_one
 --  Generated {stamp}
 -- =====================================================================
@@ -55,28 +58,13 @@ select
 
 
 def expected_counts() -> str:
-    """Derive the expected row counts from the seed file itself, so the
-    comment can never drift out of date."""
-    import re
-    from collections import Counter
+    """Derived from the SQL itself, deduplicated the same way Postgres will
+    dedupe it, so this comment can never drift out of date."""
+    from scripts.sql_parse import expected_counts as counts
 
-    sql = (MIGRATIONS / "003_seed_3pl.sql").read_text()
-
-    def count(marker: str) -> int:
-        start = sql.index("(values", sql.index(marker))
-        depth, i = 1, start + len("(values")
-        while depth:
-            if sql[i] == "(":
-                depth += 1
-            elif sql[i] == ")":
-                depth -= 1
-            i += 1
-        return len(re.findall(r"\(([^()]*)\)", sql[start:i]))
-
-    return (f"1 service, {count('insert into service_signals')} signals, "
-            f"{count('insert into service_keywords')} keywords, "
-            f"{count('insert into discovery_queries')} queries, "
-            f"{count('insert into service_roles')} roles")
+    c = counts()
+    return (f"1 service, {c['signals']} signals, {c['keywords']} keywords, "
+            f"{c['queries']} queries, {c['roles']} roles")
 
 
 def build() -> Path:

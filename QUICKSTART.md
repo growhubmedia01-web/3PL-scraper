@@ -355,6 +355,47 @@ celery -A app.workers.celery_app beat   --loglevel=info   # terminal 2
 
 ## Troubleshooting
 
+**`[WinError 10013] An attempt was made to access a socket in a way forbidden
+by its access permissions`**
+
+Windows is refusing the port bind. Despite the wording it usually is *not*
+another app holding the port — Hyper-V, WSL and Docker Desktop reserve large
+blocks of TCP ports, and anything inside a reserved block fails this way while
+`netstat` shows nothing listening.
+
+Easiest fix — let the app choose a working port:
+
+```powershell
+cd backend
+py run.py
+```
+
+It tests the port first, falls back to the next usable one, and prints the URL
+plus the exact `frontend/.env` line to match.
+
+To see the reserved blocks:
+
+```powershell
+netsh interface ipv4 show excludedportrange protocol=tcp
+```
+
+If `8000` falls inside one of those ranges, that's your answer. Other options:
+
+| Fix | Command |
+|---|---|
+| Pick a port yourself | `py run.py --port 8123` |
+| Check whether something really is listening | `netstat -ano \| findstr :8000` |
+| Free the Hyper-V reservations (admin, needs reboot) | `net stop winnat` then `net start winnat` |
+
+**If you change the API port**, update `frontend/.env`:
+
+```
+VITE_API_BASE_URL=http://localhost:8123
+```
+
+and restart `npm run dev`. The dashboard proxies `/api` to that address.
+
+
 **`SystemExit: DATABASE_URL is not configured`** — the placeholder is still in
 `.env`. That's step 1 above.
 

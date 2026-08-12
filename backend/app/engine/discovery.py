@@ -6,6 +6,7 @@ Vendor-agnostic: it only talks to SearchService.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -43,6 +44,57 @@ class DiscoveryStats:
         }
 
 
+# Separators used between a brand name and its tagline in a page title.
+# A bare hyphen is deliberately excluded: "Well-Kept | Skincare" must not
+# become "Well".
+_TITLE_SEPARATOR = re.compile(
+    r"\s+[|\u2013\u2014\u00b7]\s+|\s+-\s+|:\s+")
+
+_TITLE_NOISE = re.compile(
+    r"^(shop|welcome to|official site of|buy)\s+|"
+    r"\s+(official (site|store|website)|online (store|shop))$", re.I)
+
+# Segments that carry no company name at all.
+_TITLE_STOPWORDS = {
+    "home", "homepage", "shop", "store", "welcome", "official site",
+    "official store", "products", "index", "main", "landing page",
+}
+
+
+def _name_from_title(title: str | None) -> str | None:
+    """Extract a company name from a search-result title.
+
+    Titles are messy: "Home | Acme Ltd", "Shop Nordic Wool - Merino",
+    "Well-Kept | Skincare". Splitting on a bare hyphen would turn
+    "Well-Kept" into "Well", so only spaced separators count, and segments
+    that are pure boilerplate are skipped rather than returned.
+    """
+    if not title:
+        return None
+    for segment in _TITLE_SEPARATOR.split(title.strip()):
+        cleaned = _TITLE_NOISE.sub("", segment).strip(
+            " -|\u2013\u2014:\u00b7")
+        if cleaned and cleaned.lower() not in _TITLE_STOPWORDS:
+            return cleaned[:200]
+    return None
+
+
+def apply_exclusions(query: str, terms: list[str]) -> str:
+    """Append Google negative operators, skipping any term already present.
+
+    Excluding "logistics" from a query that is itself about logistics would
+    return nothing, so terms already in the query are left alone.
+    """
+    if not terms:
+        return query
+    lowered = query.lower()
+    negatives = [
+        f'-"{t}"' if " " in t else f"-{t}"
+        for t in terms if t.lower() not in lowered
+    ]
+    return " ".join([query, *negatives]) if negatives else query
+
+
 def _existing_domains(db: Session) -> set[str]:
     return {row[0] for row in db.execute(select(Company.domain)).all()}
 
@@ -66,8 +118,17 @@ def _fuzzy_duplicate(db: Session, name: str | None) -> Company | None:
 def run_discovery(db: Session, config: ServiceConfig,
                   limit: int | None = None,
                   query_ids: list[str] | None = None,
-                  country: str | None = None) -> DiscoveryStats:
+                  country: str | None = None,
+                  tier: int | None = None,
+                  max_queries: int | None = None) -> DiscoveryStats:
+    """Discover companies for one service.
+
+    `tier` selects a slice of the query library (1 = highest yield). With
+    thousands of queries seeded, tier and `max_queries` are the two levers
+    that control Serper spend - only executed queries cost anything.
+    """
     limit = limit or settings.max_companies_per_discovery_run
+    max_queries = max_queries or settings.max_queries_per_discovery_run
     stats = DiscoveryStats()
     search = SearchService(db)
 
@@ -86,9 +147,20 @@ def run_discovery(db: Session, config: ServiceConfig,
 
     queries = [q for q in config.queries
                if (not query_ids or q.id in query_ids)
-               and (not country or q.country in (None, country))]
+               and (not country or q.country in (None, country))
+               and (tier is None or q.priority == tier)]
+
+    # Least-recently-run first, so repeated runs work through the library
+    # instead of re-executing the same queries and paying twice.
+    queries.sort(key=lambda q: (q.last_run_at is not None,
+                                q.last_run_at or datetime.min.replace(
+                                    tzinfo=timezone.utc),
+                                q.priority))
+    queries = queries[:max_queries]
+
     if not queries:
-        log.warning("No enabled discovery queries for service '%s'", config.slug)
+        log.warning("No enabled discovery queries for service '%s'"
+                    "%s", config.slug, f" at tier {tier}" if tier else "")
 
     known = _existing_domains(db)
 
@@ -99,7 +171,9 @@ def run_discovery(db: Session, config: ServiceConfig,
                 break
 
             target_country = country or query.country
-            results = search.search(query.query, country=target_country,
+            search_text = apply_exclusions(query.query,
+                                           config.query_exclusion_terms)
+            results = search.search(search_text, country=target_country,
                                     num=settings.search_max_results)
             stats.queries_run += 1
             stats.results_seen += len(results)
@@ -120,7 +194,7 @@ def run_discovery(db: Session, config: ServiceConfig,
                     stats.duplicates_skipped += 1
                     continue
 
-                candidate_name = (result.title or "").split("|")[0].split("-")[0].strip()
+                candidate_name = _name_from_title(result.title)
                 if _fuzzy_duplicate(db, candidate_name):
                     stats.duplicates_skipped += 1
                     known.add(domain)

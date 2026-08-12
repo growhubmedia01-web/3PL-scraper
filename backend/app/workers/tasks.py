@@ -30,12 +30,15 @@ log = logging.getLogger(__name__)
                  max_retries=2)
 def discover_companies(self, service_slug: str | None = None,
                        limit: int | None = None,
-                       country: str | None = None) -> dict:
+                       country: str | None = None,
+                       tier: int | None = None,
+                       max_queries: int | None = None) -> dict:
     service_slug = service_slug or settings.default_service_slug
     try:
         with session_scope() as db:
             config = load_service_config(db, service_slug)
-            stats = run_discovery(db, config, limit=limit, country=country)
+            stats = run_discovery(db, config, limit=limit, country=country,
+                                  tier=tier, max_queries=max_queries)
             return stats.as_dict()
     except Exception as exc:
         log.exception("discover_companies failed")

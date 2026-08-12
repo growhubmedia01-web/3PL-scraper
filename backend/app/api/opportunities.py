@@ -88,6 +88,9 @@ def list_opportunities(
     urgency: str | None = None,
     industry: str | None = None,
     platform: str | None = None,
+    business_model: str | None = Query(
+        None, description="dtc|wholesale|manufacturer|retail|marketplace|"
+                          "subscription|importer|multi_channel"),
     signal: str | None = Query(None, description="Filter by signal_type"),
     min_score: float | None = Query(None, ge=0, le=100),
     max_score: float | None = Query(None, ge=0, le=100),
@@ -118,6 +121,8 @@ def list_opportunities(
         stmt = stmt.where(Company.industry == industry)
     if platform:
         stmt = stmt.where(Company.platform == platform)
+    if business_model:
+        stmt = stmt.where(Company.business_model == business_model)
     if min_score is not None:
         stmt = stmt.where(ServiceOpportunity.score >= min_score)
     if max_score is not None:
@@ -157,7 +162,9 @@ def list_opportunities(
             id=opportunity.id, company_id=company.id, company_name=company.name,
             domain=company.domain, website=company.website,
             country=company.country, industry=company.industry,
-            platform=company.platform, score=float(opportunity.score),
+            platform=company.platform,
+            business_model=company.business_model,
+            score=float(opportunity.score),
             intent_level=opportunity.intent_level, urgency=opportunity.urgency,
             likely_need=opportunity.likely_need or [],
             signal_types=sorted(signals.get(company.id, [])),

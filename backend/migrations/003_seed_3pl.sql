@@ -21,6 +21,10 @@ values (
     'required_signals', jsonb_build_array('physical_products'),
     'signal_page_affinity', jsonb_build_object(
         'existing_3pl', jsonb_build_array('shipping','returns','about','website','careers')),
+    'query_exclusion_terms', jsonb_build_array(
+        '3pl', 'fulfillment provider', 'fulfilment provider',
+        'logistics provider', 'fulfillment company', 'warehousing company',
+        'fulfillment service', 'agency', 'consultant'),
     'refresh_days', jsonb_build_object(
         'HOT', 3, 'STRONG', 7, 'GOOD', 30, 'POSSIBLE', 60, 'LOW', 180),
     'ai_system_prompt',
@@ -38,7 +42,7 @@ insert into service_signals
 select s.id, v.signal_type, v.signal_name, v.description, v.weight, v.decay_days, v.max_occ
 from services s,
 (values
- ('ecommerce','Ecommerce','Sells online via a storefront platform or cart/checkout flow',10,null,1),
+ ('ecommerce','Ecommerce','Sells online via a storefront platform or cart/checkout flow',8,null,1),
  ('physical_products','Physical Products','Ships tangible goods with SKUs, inventory and returns',10,null,1),
  ('new_store','New Store','Recently launched online store',10,365,1),
  ('international_shipping','International Shipping','States it ships beyond its home market',8,null,1),

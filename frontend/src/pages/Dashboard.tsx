@@ -103,7 +103,7 @@ export default function Dashboard() {
         <StatCard label="Avg score" value={stats.average_score.toFixed(1)} />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4">
+      <div className="grid lg:grid-cols-2 xl:grid-cols-4 gap-4">
         <div className="card p-4">
           <h2 className="font-semibold text-sm mb-3">Pipeline health</h2>
           <dl className="text-sm space-y-2">
@@ -131,6 +131,24 @@ export default function Dashboard() {
                   <BarRow key={row.intent_level} label={row.intent_level}
                     count={row.count}
                     max={Math.max(...stats.by_intent.map((r) => r.count))} />
+                ))}
+              </div>
+            )}
+        </div>
+
+        <div className="card p-4">
+          <h2 className="font-semibold text-sm mb-3">Business models</h2>
+          {stats.by_business_model.length === 0
+            ? <p className="text-sm text-ink-400">Nothing classified yet.</p>
+            : (
+              <div className="flex flex-wrap gap-1.5">
+                {stats.by_business_model.map((row) => (
+                  <Link key={row.business_model}
+                    to={`/leads?business_model=${row.business_model}`}>
+                    <Chip tone="blue">
+                      {humanizeSignal(row.business_model)} · {row.count}
+                    </Chip>
+                  </Link>
                 ))}
               </div>
             )}

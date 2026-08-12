@@ -19,7 +19,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export interface LeadFilters {
   q?: string; country?: string; intent?: string; urgency?: string
-  industry?: string; platform?: string; signal?: string
+  industry?: string; platform?: string; business_model?: string
+  signal?: string
   min_score?: number; has_decision_maker?: boolean
   discovered_within_days?: number
   sort?: string; page?: number; page_size?: number

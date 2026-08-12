@@ -106,6 +106,8 @@ class CompanyOut(ORMBase):
     is_ecommerce: bool | None = None
     is_physical_product: bool | None = None
     platform: str | None = None
+    business_model: str | None = None
+    sales_channels: list[str] = []
     employee_count: int | None = None
     founded_year: int | None = None
     status: str
@@ -154,6 +156,7 @@ class OpportunityListItem(BaseModel):
     country: str | None = None
     industry: str | None = None
     platform: str | None = None
+    business_model: str | None = None
     score: float
     intent_level: str
     urgency: str | None = None
@@ -218,6 +221,7 @@ class DashboardStats(BaseModel):
     by_country: list[dict] = []
     by_intent: list[dict] = []
     by_signal: list[dict] = []
+    by_business_model: list[dict] = []
 
 
 # ---------------- admin ----------------
@@ -279,9 +283,23 @@ class KeywordCreate(BaseModel):
 
 class DiscoveryRunRequest(BaseModel):
     service_slug: str | None = None
-    limit: int | None = Field(None, ge=1, le=1000)
+    limit: int | None = Field(None, ge=1, le=1000,
+                              description="Max companies created this run")
+    max_queries: int | None = Field(None, ge=1, le=2000,
+                                    description="Max Serper queries this run")
+    tier: int | None = Field(None, ge=1, le=4,
+                             description="1=platform+category (best yield), "
+                                         "4=broad/geographic")
     country: str | None = None
     run_async: bool = True
+
+
+class QueryLibraryStats(BaseModel):
+    total: int
+    enabled: int
+    never_run: int
+    by_tier: list[dict]
+    estimated_serper_credits_full_pass: int
 
 
 class AnalyzeRequest(BaseModel):

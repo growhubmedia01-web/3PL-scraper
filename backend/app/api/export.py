@@ -23,7 +23,8 @@ from app.models import (
 router = APIRouter(prefix="/api/export", tags=["export"])
 
 CSV_COLUMNS = [
-    "Company", "Website", "Country", "Industry", "Platform",
+    "Company", "Website", "Country", "Industry", "Business Model",
+    "Sales Channels", "Platform",
     "Score", "Intent Level", "Urgency", "Signals", "Likely Services",
     "Target Country", "Decision Maker", "Job Title", "Public Profile URL",
     "Decision Maker Confidence", "Evidence URLs", "Last Updated",
@@ -45,6 +46,7 @@ def export_csv(
     service: str = Query(settings.default_service_slug),
     intent: str | None = None,
     country: str | None = None,
+    business_model: str | None = None,
     min_score: float | None = Query(None, ge=0, le=100),
     has_decision_maker: bool | None = None,
     limit: int = Query(5000, ge=1, le=50000),
@@ -64,6 +66,8 @@ def export_csv(
         stmt = stmt.where(ServiceOpportunity.intent_level == intent.upper())
     if country:
         stmt = stmt.where(Company.country == country.upper())
+    if business_model:
+        stmt = stmt.where(Company.business_model == business_model)
     if min_score is not None:
         stmt = stmt.where(ServiceOpportunity.score >= min_score)
     if has_decision_maker is not None:
@@ -109,6 +113,8 @@ def export_csv(
             company.website or f"https://{company.domain}",
             company.country or "",
             company.industry or "",
+            company.business_model or "",
+            "; ".join(company.sales_channels or []),
             company.platform or "",
             f"{float(opportunity.score):.1f}",
             opportunity.intent_level,

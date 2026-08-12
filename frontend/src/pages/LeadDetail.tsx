@@ -59,6 +59,20 @@ export default function LeadDetail() {
             {company.platform && ` · ${company.platform}`}
             {company.industry && ` · ${company.industry}`}
           </div>
+          {(company.business_model || company.sales_channels?.length > 0) && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {company.business_model && (
+                <Chip tone="blue">
+                  {humanizeSignal(company.business_model)}
+                </Chip>
+              )}
+              {(company.sales_channels || [])
+                .filter((c) => c !== company.business_model)
+                .map((channel) => (
+                  <Chip key={channel}>{humanizeSignal(channel)}</Chip>
+                ))}
+            </div>
+          )}
           {company.description && (
             <p className="text-sm text-ink-600 mt-3 max-w-3xl">
               {company.description}

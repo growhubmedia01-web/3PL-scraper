@@ -96,7 +96,8 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
 
         # ---- 2. Classify + early reject (§32, §49) ---------------------
         result.stage = "classify"
-        classification = classify(company, pages)
+        classification = classify(company, pages,
+                                  config.excluded_business_types)
         apply_classification(db, company, classification)
         if not classification.relevant:
             result.rejected = True

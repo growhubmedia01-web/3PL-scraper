@@ -119,6 +119,7 @@ class Settings(BaseSettings):
 
     # ---- cost guards ----
     max_companies_per_discovery_run: int = 200
+    max_queries_per_discovery_run: int = 50
     max_ai_calls_per_run: int = 100
 
     default_service_slug: str = "3pl"

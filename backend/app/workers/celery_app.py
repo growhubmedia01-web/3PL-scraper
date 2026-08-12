@@ -36,7 +36,8 @@ celery_app.conf.beat_schedule = {
     "discover-new-companies-daily": {
         "task": "app.workers.tasks.discover_companies",
         "schedule": crontab(hour=2, minute=0),
-        "args": (SLUG, None, None),
+        # tier 1 daily: highest-yield queries, least-recently-run first
+        "args": (SLUG, None, None, 1, 60),
     },
     "process-queue-hourly": {
         "task": "app.workers.tasks.process_queue_task",

@@ -77,6 +77,15 @@ def dashboard(service: str = Query(settings.default_service_slug),
     stats.signals_detected = sum(n for _, n in signal_rows)
     stats.by_signal = [{"signal_type": s, "count": n} for s, n in signal_rows]
 
+    model_rows = db.execute(
+        select(Company.business_model, func.count(Company.id))
+        .where(Company.business_model.is_not(None))
+        .group_by(Company.business_model)
+        .order_by(func.count(Company.id).desc())
+    ).all()
+    stats.by_business_model = [{"business_model": m, "count": n}
+                               for m, n in model_rows]
+
     stats.decision_makers_identified = db.execute(
         select(func.count(DecisionMaker.id))).scalar_one()
 

@@ -36,7 +36,7 @@ seed-sql:
 	cd backend && python -m scripts.seed --sql
 
 api:
-	cd backend && uvicorn app.main:app --reload --port 8000
+	cd backend && python run.py
 
 worker:
 	cd backend && celery -A app.workers.celery_app worker --loglevel=info
