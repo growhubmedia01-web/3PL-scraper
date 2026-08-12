@@ -13,6 +13,7 @@ from app.config import settings
 from app.models import ApiUsage, SearchCache
 from app.providers.search.base import SearchProvider, SearchProviderError, SearchResult
 from app.providers.search.brave import BraveProvider
+from app.providers.search.exa import ExaProvider
 from app.providers.search.serpapi import SerpApiProvider
 from app.providers.search.serper import SerperProvider
 
@@ -22,6 +23,7 @@ _REGISTRY: dict[str, type[SearchProvider]] = {
     "serper": SerperProvider,
     "serpapi": SerpApiProvider,
     "brave": BraveProvider,
+    "exa": ExaProvider,
 }
 
 

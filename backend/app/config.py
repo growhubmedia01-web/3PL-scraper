@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     serper_api_key: str = ""
     serpapi_key: str = ""
     brave_search_api_key: str = ""
+    exa_api_key: str = ""
     search_cache_ttl_hours: int = 168
     search_max_results: int = 20
 
