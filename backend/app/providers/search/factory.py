@@ -46,16 +46,36 @@ def get_search_provider(name: str | None = None) -> SearchProvider:
 
 
 def _configured_chain(preferred: str | None = None) -> list[SearchProvider]:
-    order = [preferred or settings.search_provider] + [
-        p for p in _REGISTRY if p != (preferred or settings.search_provider)]
+    preferred_str = preferred or settings.search_provider or "serper"
+    preferred_names = [p.strip().lower() for p in preferred_str.split(",") if p.strip()]
+
     chain = []
-    for name in order:
+    seen = set()
+
+    # First, add the preferred ones in order
+    for name in preferred_names:
+        if name in seen:
+            continue
         try:
             provider = get_search_provider(name)
+            if provider.configured:
+                chain.append(provider)
+                seen.add(name)
         except SearchProviderError:
             continue
-        if provider.configured:
-            chain.append(provider)
+
+    # Then, add any other providers in the registry as fallback
+    for name in _REGISTRY:
+        if name in seen:
+            continue
+        try:
+            provider = get_search_provider(name)
+            if provider.configured:
+                chain.append(provider)
+                seen.add(name)
+        except SearchProviderError:
+            continue
+
     return chain
 
 
@@ -63,11 +83,14 @@ class SearchService:
     """What the discovery engine actually uses.
 
     Adds: DB-backed result caching (cost control), automatic fallback to the
-    next configured vendor, and API usage accounting.
+    next configured vendor, and API usage accounting. Supports combining results
+    from multiple search providers.
     """
 
     def __init__(self, db: Session, provider: str | None = None):
         self.db = db
+        preferred_str = provider or settings.search_provider or "serper"
+        self.preferred_names = [p.strip().lower() for p in preferred_str.split(",") if p.strip()]
         self.chain = _configured_chain(provider)
 
     @property
@@ -124,21 +147,77 @@ class SearchService:
             log.warning("No search provider configured; returning no results.")
             return []
 
-        last_error: Exception | None = None
-        for provider in self.chain:
-            try:
-                fn = provider.news if mode == "news" else provider.search
-                results = fn(query, country=country, num=num)
-                self._record_usage(provider.name, f"search.{mode}", True)
-                if use_cache:
-                    self._store(key, query, provider.name, results)
-                return results
-            except Exception as exc:  # try the next vendor (§55)
-                last_error = exc
-                self._record_usage(provider.name, f"search.{mode}", False)
-                log.warning("Search provider %s failed for %r: %s",
-                            provider.name, query, exc)
-                continue
+        # If multiple preferred search providers are specified, query all of them and combine results.
+        if len(self.preferred_names) > 1:
+            combined_results = []
+            seen_urls = set()
+            last_error: Exception | None = None
+            any_success = False
 
-        log.error("All search providers failed for %r: %s", query, last_error)
-        return []
+            # Query all configured preferred providers
+            for provider in self.chain:
+                if provider.name in self.preferred_names:
+                    try:
+                        fn = provider.news if mode == "news" else provider.search
+                        results = fn(query, country=country, num=num)
+                        self._record_usage(provider.name, f"search.{mode}", True)
+                        any_success = True
+                        for r in results:
+                            if r.url not in seen_urls:
+                                seen_urls.add(r.url)
+                                combined_results.append(r)
+                    except Exception as exc:
+                        last_error = exc
+                        self._record_usage(provider.name, f"search.{mode}", False)
+                        log.warning("Search provider %s failed for %r: %s",
+                                    provider.name, query, exc)
+
+            # Fallback to other providers if none of the preferred ones succeeded
+            if not any_success:
+                for provider in self.chain:
+                    if provider.name not in self.preferred_names:
+                        try:
+                            fn = provider.news if mode == "news" else provider.search
+                            results = fn(query, country=country, num=num)
+                            self._record_usage(provider.name, f"search.{mode}", True)
+                            any_success = True
+                            for r in results:
+                                if r.url not in seen_urls:
+                                    seen_urls.add(r.url)
+                                    combined_results.append(r)
+                            break
+                        except Exception as exc:
+                            last_error = exc
+                            self._record_usage(provider.name, f"search.{mode}", False)
+                            log.warning("Fallback search provider %s failed for %r: %s",
+                                        provider.name, query, exc)
+
+            if not any_success and last_error:
+                log.error("All search providers failed for %r: %s", query, last_error)
+                return []
+
+            if use_cache and any_success:
+                provider_name = "+".join(self.preferred_names)
+                self._store(key, query, provider_name, combined_results)
+
+            return combined_results
+
+        else:
+            last_error: Exception | None = None
+            for provider in self.chain:
+                try:
+                    fn = provider.news if mode == "news" else provider.search
+                    results = fn(query, country=country, num=num)
+                    self._record_usage(provider.name, f"search.{mode}", True)
+                    if use_cache:
+                        self._store(key, query, provider.name, results)
+                    return results
+                except Exception as exc:  # try the next vendor (§55)
+                    last_error = exc
+                    self._record_usage(provider.name, f"search.{mode}", False)
+                    log.warning("Search provider %s failed for %r: %s",
+                                provider.name, query, exc)
+                    continue
+
+            log.error("All search providers failed for %r: %s", query, last_error)
+            return []
