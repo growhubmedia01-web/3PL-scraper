@@ -184,17 +184,30 @@ def trigger_analysis(company_id: str, payload: AnalyzeRequest,
 @router.post("/pipeline/process-queue", response_model=TaskAccepted)
 def process_queue(payload: AnalyzeRequest, background: BackgroundTasks,
                   limit: int = 25, db: Session = Depends(get_db)):
-    """Crawl + classify + score everything sitting in the queue."""
+    """Crawl + classify + score everything sitting in the queue.
+
+    Runs synchronously so the work actually completes on serverless / free-tier
+    hosts (e.g. Render) where background tasks are killed once the response is
+    sent. The HTTP call will block for however long the batch takes (~30-120s
+    for limit=100), but cron-job.org handles this fine with a long timeout.
+    """
     slug = payload.service_slug or settings.default_service_slug
     pending = len(queued_companies(db, limit=1000))
     if pending == 0:
         return TaskAccepted(accepted=False, message="No companies queued")
 
-    from app.workers import tasks
-    task_id = _dispatch("process_queue", background, tasks.process_queue_task,
-                        _local_process_queue, slug, limit)
-    return TaskAccepted(task_id=task_id,
-                        message=f"Processing up to {limit} of {pending} queued companies")
+    # Run synchronously — do NOT background this. Background tasks are killed
+    # by Render free tier as soon as the HTTP response is flushed, meaning the
+    # queue never actually drains.
+    _local_process_queue(slug, limit)
+
+    # Check how many are now crawled after the run
+    still_pending = len(queued_companies(db, limit=1000))
+    processed = pending - still_pending
+    return TaskAccepted(
+        task_id=None,
+        message=f"Processed {processed} companies. {still_pending} still queued."
+    )
 
 
 @router.post("/companies/add", response_model=TaskAccepted)
