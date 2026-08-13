@@ -18,15 +18,16 @@ engine = create_engine(
     settings.database_url,
     pool_pre_ping=True,
     future=True,
-    **({
+    **({\
         "connect_args": {"check_same_thread": False, "timeout": 30}
     } if _is_sqlite else {
-        # prepare_threshold=0 disables server-side prepared statements.
+        # prepare_threshold=None fully disables server-side prepared statements.
         # Required for Supabase's PgBouncer transaction pooler — it does not
-        # support prepared statements and raises DuplicatePreparedStatement
-        # errors otherwise. Setting this to 0 tells psycopg3 to always use
-        # simple queries instead of prepared ones.
-        "connect_args": {"prepare_threshold": 0},
+        # persist prepared statements across connections.
+        #
+        # IMPORTANT: 0 means "prepare on first use" (wrong — makes it worse!).
+        #            None means "never prepare" (correct for PgBouncer).
+        "connect_args": {"prepare_threshold": None},
         "pool_size": 5,
         "max_overflow": 10,
         "pool_recycle": 300,
@@ -43,15 +44,13 @@ if _is_sqlite:
 else:
     @event.listens_for(engine, "connect")
     def _pg_no_prepared_stmts(dbapi_conn, _):
-        """Belt-and-suspenders: ensure every pooled connection has prepared
-        statements disabled, even if the connection was recycled.
+        """Belt-and-suspenders: disable prepared statements on every connection.
 
         Supabase's PgBouncer transaction pooler does not persist prepared
-        statements across connections. Without this, psycopg3 may try to
-        execute a named prepared statement on a different backend connection
-        that has never seen that statement, causing InvalidSqlStatementName.
+        statements across connections. None = never use prepared statements.
+        0 would mean "prepare on first use" which is wrong for PgBouncer.
         """
-        dbapi_conn.prepare_threshold = 0
+        dbapi_conn.prepare_threshold = None
 
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False,
