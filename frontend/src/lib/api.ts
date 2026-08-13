@@ -4,18 +4,38 @@ import type {
 
 const BASE = import.meta.env.VITE_API_BASE_URL || ''
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
-    ...init,
-  })
-  if (!res.ok) {
-    let detail = res.statusText
-    try { detail = (await res.json()).detail ?? detail } catch { /* noop */ }
-    throw new Error(`${res.status}: ${detail}`)
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 1000 // doubles each attempt: 1s, 2s, 4s
+
+async function request<T>(path: string, init?: RequestInit, attempt = 0): Promise<T> {
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+      ...init,
+    })
+
+    // Retry on 500/503 — Render cold-start returns these transiently
+    if ((res.status === 500 || res.status === 503) && attempt < MAX_RETRIES) {
+      await new Promise(r => setTimeout(r, RETRY_DELAY_MS * Math.pow(2, attempt)))
+      return request<T>(path, init, attempt + 1)
+    }
+
+    if (!res.ok) {
+      let detail = res.statusText
+      try { detail = (await res.json()).detail ?? detail } catch { /* noop */ }
+      throw new Error(`${res.status}: ${detail}`)
+    }
+    return res.json() as Promise<T>
+  } catch (err) {
+    // Retry on network failures (ERR_FAILED = server not yet awake)
+    if (attempt < MAX_RETRIES && err instanceof TypeError) {
+      await new Promise(r => setTimeout(r, RETRY_DELAY_MS * Math.pow(2, attempt)))
+      return request<T>(path, init, attempt + 1)
+    }
+    throw err
   }
-  return res.json() as Promise<T>
 }
+
 
 export interface LeadFilters {
   q?: string; country?: string; intent?: string; urgency?: string

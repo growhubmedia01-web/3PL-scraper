@@ -14,12 +14,19 @@ export default function Dashboard() {
   const [notice, setNotice] = useState<string | null>(null)
   const [seedUrl, setSeedUrl] = useState('')
 
+  const [wakingUp, setWakingUp] = useState(false)
+
   const load = useCallback(async () => {
     try {
       setError(null)
+      // Show "waking up" message after 2s if still loading (Render cold start)
+      const wakeTimer = setTimeout(() => setWakingUp(true), 2000)
       const [s, h] = await Promise.all([api.stats(), api.health()])
+      clearTimeout(wakeTimer)
+      setWakingUp(false)
       setStats(s); setHealth(h)
     } catch (err) {
+      setWakingUp(false)
       setError((err as Error).message)
     }
   }, [])
@@ -40,7 +47,17 @@ export default function Dashboard() {
   }
 
   if (error) return <ErrorBox error={error} onRetry={load} />
-  if (!stats || !health) return <Spinner />
+  if (!stats || !health) return (
+    <div className="flex flex-col items-center justify-center min-h-[300px] gap-4 text-center">
+      <Spinner />
+      {wakingUp && (
+        <div className="text-sm text-gray-500 animate-pulse max-w-xs">
+          ⏳ Server is waking up… this takes up to 30 seconds on the free tier.
+          <br />Retrying automatically, please wait.
+        </div>
+      )}
+    </div>
+  )
 
   const setupIssues = [
     !health.database.url_configured &&
