@@ -216,3 +216,26 @@ def list_suppressions(db: Session = Depends(get_db)):
     rows = db.execute(select(Suppression)).scalars().all()
     return [{"id": r.id, "kind": r.kind, "value": r.value,
              "reason": r.reason, "created_at": r.created_at} for r in rows]
+
+
+@router.post("/run-migration")
+def run_migration(db: Session = Depends(get_db)):
+    """Apply migration 004: add business_model and sales_channels columns.
+    Safe to run multiple times (IF NOT EXISTS guards)."""
+    from sqlalchemy import text
+    results = []
+    sqls = [
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS business_model text",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sales_channels jsonb NOT NULL DEFAULT '[]'::jsonb",
+        "CREATE INDEX IF NOT EXISTS idx_companies_business_model ON companies(business_model)",
+    ]
+    for sql in sqls:
+        try:
+            db.execute(text(sql))
+            db.commit()
+            results.append({"sql": sql[:60], "status": "ok"})
+        except Exception as exc:
+            db.rollback()
+            results.append({"sql": sql[:60], "status": "error", "error": str(exc)[:200]})
+    return {"results": results}
+
