@@ -121,6 +121,8 @@ def health(db: Session = Depends(get_db)):
     """Readiness detail the dashboard shows as a setup checklist."""
     from app.providers.llm.factory import LLMService
     from app.providers.search.factory import SearchService
+    from app.providers.search.serper import _build_key_pool as serper_pool
+    from app.providers.search.exa import _build_key_pool as exa_pool
 
     try:
         db.execute(select(func.count(Service.id))).scalar_one()
