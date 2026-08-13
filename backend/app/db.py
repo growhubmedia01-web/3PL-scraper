@@ -18,8 +18,19 @@ engine = create_engine(
     settings.database_url,
     pool_pre_ping=True,
     future=True,
-    **({"connect_args": {"check_same_thread": False, "timeout": 30}} if _is_sqlite else
-       {"pool_size": 5, "max_overflow": 10, "pool_recycle": 300}),
+    **({
+        "connect_args": {"check_same_thread": False, "timeout": 30}
+    } if _is_sqlite else {
+        # prepare_threshold=0 disables server-side prepared statements.
+        # Required for Supabase's PgBouncer transaction pooler — it does not
+        # support prepared statements and raises DuplicatePreparedStatement
+        # errors otherwise. Setting this to 0 tells psycopg3 to always use
+        # simple queries instead of prepared ones.
+        "connect_args": {"prepare_threshold": 0},
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_recycle": 300,
+    }),
 )
 
 if _is_sqlite:
