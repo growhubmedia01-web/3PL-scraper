@@ -16,6 +16,7 @@ One company failing never aborts the batch (§55).
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
@@ -56,12 +57,16 @@ class BatchResult:
     rejected: int = 0
     errors: int = 0
     ai_calls: int = 0
+    stopped_reason: str = "completed"
+    elapsed_seconds: float = 0.0
     results: list[CompanyResult] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {"processed": self.processed, "qualified": self.qualified,
                 "rejected": self.rejected, "errors": self.errors,
-                "ai_calls": self.ai_calls}
+                "ai_calls": self.ai_calls,
+                "stopped_reason": self.stopped_reason,
+                "elapsed_seconds": round(self.elapsed_seconds, 1)}
 
 
 def process_company(db: Session, company: Company, config: ServiceConfig, *,
@@ -167,9 +172,32 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
 
 
 def process_batch(db: Session, companies: list[Company], config: ServiceConfig,
-                  **kwargs) -> BatchResult:
+                  max_seconds: float | None = None, **kwargs) -> BatchResult:
+    """Process companies until the list is exhausted or the time budget runs out.
+
+    A count limit alone is not enough to bound this. One company can take
+    anywhere from ~30 seconds to several minutes depending on how many pages
+    it has, how slow it responds, and whether external lookups time out. When
+    this runs inside a synchronous HTTP request - which it must on hosts that
+    kill background tasks once the response is flushed - an unbounded batch
+    means the request eventually times out and the caller learns nothing about
+    what was done.
+
+    The deadline is checked between companies, so the real worst case is
+    `max_seconds` plus however long the last company takes.
+    """
     batch = BatchResult()
+    started = time.monotonic()
+    deadline = started + max_seconds if max_seconds else None
+
     for company in companies:
+        if deadline and time.monotonic() >= deadline:
+            batch.stopped_reason = "time_budget_reached"
+            log.info("Batch stopped after %.0fs (%d processed, %d left)",
+                     time.monotonic() - started, batch.processed,
+                     len(companies) - batch.processed)
+            break
+
         outcome = process_company(db, company, config, **kwargs)
         batch.results.append(outcome)
         batch.processed += 1
@@ -181,12 +209,16 @@ def process_batch(db: Session, companies: list[Company], config: ServiceConfig,
             batch.rejected += 1
         elif outcome.ok:
             batch.qualified += 1
-        # Commit per company so one failure can't lose the whole batch.
+
+        # Commit per company so one failure can't lose the whole batch, and
+        # so a timeout mid-batch still leaves everything already done saved.
         try:
             db.commit()
         except Exception:
             db.rollback()
             batch.errors += 1
+
+    batch.elapsed_seconds = time.monotonic() - started
     return batch
 
 

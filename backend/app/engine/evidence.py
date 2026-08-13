@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -60,13 +61,21 @@ class ExternalEvidence:
         return page
 
 
+# Probing 3 slugs x 5 vendors at a 15s timeout is up to 225 seconds for a
+# single company, almost all of it spent waiting on 404s and dead hosts.
+# Inside a synchronous request that alone can blow the whole time budget.
+ATS_TIMEOUT_SECONDS = 4.0
+ATS_MAX_SLUG_CANDIDATES = 2
+
+
 def _ats_slug_candidates(company: Company) -> list[str]:
     base = (company.name or company.domain.split(".")[0]).lower()
     base = re.sub(r"[^a-z0-9 ]+", "", base).strip()
     compact = base.replace(" ", "")
     hyphen = base.replace(" ", "-")
     root = company.domain.split(".")[0].lower()
-    return list(dict.fromkeys([c for c in (root, compact, hyphen) if c]))
+    unique = list(dict.fromkeys([c for c in (root, compact, hyphen) if c]))
+    return unique[:ATS_MAX_SLUG_CANDIDATES]
 
 
 def fetch_ats_jobs(company: Company, max_jobs: int = 25) -> list[ExternalEvidence]:
@@ -74,10 +83,16 @@ def fetch_ats_jobs(company: Company, max_jobs: int = 25) -> list[ExternalEvidenc
     public JSON endpoints intended for embedding."""
     out: list[ExternalEvidence] = []
     headers = {"User-Agent": settings.crawler_user_agent}
+    budget = time.monotonic() + ATS_TIMEOUT_SECONDS * 6   # hard ceiling
 
-    with httpx.Client(timeout=15, headers=headers, follow_redirects=True) as client:
+    with httpx.Client(timeout=ATS_TIMEOUT_SECONDS, headers=headers,
+                      follow_redirects=True) as client:
         for slug in _ats_slug_candidates(company):
             for vendor, template in ATS_ENDPOINTS:
+                if time.monotonic() > budget:
+                    log.debug("ATS probing budget exhausted for %s",
+                              company.domain)
+                    return out
                 url = template.format(slug=slug)
                 try:
                     resp = client.get(url)

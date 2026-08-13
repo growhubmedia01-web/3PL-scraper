@@ -37,6 +37,7 @@ class CrawlResult:
     fetched: int = 0
     skipped_robots: int = 0
     failed: int = 0
+    stopped_early: bool = False
     error: str | None = None
 
     @property
@@ -120,9 +121,19 @@ def _persist_source(db: Session, company: Company, page: ExtractedPage) -> Sourc
 
 
 def crawl_company(db: Session, company: Company,
-                  max_pages: int | None = None) -> CrawlResult:
-    """Crawl one company's website. Never raises for site-level problems."""
+                  max_pages: int | None = None,
+                  max_seconds: float | None = None) -> CrawlResult:
+    """Crawl one company's website. Never raises for site-level problems.
+
+    `max_seconds` bounds the whole company. Without it a slow or flaky site
+    can take minutes: 12 pages x (crawl delay + a 20s timeout + retries with
+    exponential backoff). That is fine in a worker, but inside a synchronous
+    HTTP request it blows the caller's timeout and the batch reports nothing.
+    The homepage is always attempted; the budget only limits the extra pages.
+    """
     max_pages = max_pages or settings.crawl_max_pages_per_company
+    max_seconds = max_seconds or settings.crawl_max_seconds_per_company
+    deadline = time.monotonic() + max_seconds if max_seconds else None
     result = CrawlResult(company_id=company.id, domain=company.domain)
     base = company.website or root_url(company.domain)
 
@@ -146,6 +157,11 @@ def crawl_company(db: Session, company: Company,
             targets = candidate_urls(base, home.internal_links, limit=max_pages)
             for url, page_type in targets:
                 if result.fetched >= max_pages:
+                    break
+                if deadline and time.monotonic() >= deadline:
+                    result.stopped_early = True
+                    log.info("Crawl budget reached for %s after %d pages",
+                             company.domain, result.fetched)
                     break
                 if normalize_url(url) == home_url:
                     continue

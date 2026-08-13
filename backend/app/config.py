@@ -102,6 +102,9 @@ class Settings(BaseSettings):
     crawl_timeout_seconds: int = 20
     crawl_max_retries: int = 3
     crawl_max_pages_per_company: int = 12
+    # Wall-clock ceiling for one company. Keeps a single slow site from
+    # consuming a synchronous request's entire time budget.
+    crawl_max_seconds_per_company: float = 45.0
     respect_robots_txt: bool = True
     playwright_enabled: bool = False
 
