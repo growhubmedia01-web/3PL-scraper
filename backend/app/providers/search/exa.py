@@ -1,14 +1,17 @@
 """Exa (exa.ai) search provider — neural/AI-powered web search.
 
-Exa is distinct from keyword-search APIs: it uses embedding-based retrieval,
-which finds semantically relevant pages rather than just keyword matches.
-This is particularly effective for discovering new brands.
+Supports multiple API keys via EXA_API_KEYS (comma-separated) for key
+rotation. When one key hits the rate limit (429) or is exhausted, the provider
+automatically moves to the next key in the list. This lets you pool multiple
+free-tier keys to multiply your effective credit quota.
 
 Docs: https://docs.exa.ai/reference/search
 """
 from __future__ import annotations
 
+import itertools
 import logging
+import threading
 
 import httpx
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
@@ -20,39 +23,100 @@ log = logging.getLogger(__name__)
 
 _ENDPOINT = "https://api.exa.ai"
 
+# Thread-safe round-robin key rotator shared across all provider instances.
+_lock = threading.Lock()
+_key_cycle: itertools.cycle | None = None
+_all_keys: list[str] = []
+
+
+def _build_key_pool() -> list[str]:
+    """Collect all configured Exa keys (deduped, non-empty)."""
+    keys: list[str] = []
+    # Multi-key env var takes priority
+    multi = getattr(settings, "exa_api_keys", "") or ""
+    for k in multi.split(","):
+        k = k.strip()
+        if k and k not in keys:
+            keys.append(k)
+    # Fall back to single key
+    single = settings.exa_api_key or ""
+    if single and single not in keys:
+        keys.append(single)
+    return keys
+
+
+def _get_next_key() -> str | None:
+    """Return the next key in the round-robin rotation."""
+    global _key_cycle, _all_keys
+    with _lock:
+        if _key_cycle is None:
+            _all_keys = _build_key_pool()
+            if not _all_keys:
+                return None
+            _key_cycle = itertools.cycle(_all_keys)
+        return next(_key_cycle)
+
 
 class ExaProvider(SearchProvider):
     name = "exa"
 
     def __init__(self, api_key: str | None = None):
-        self.api_key = api_key or settings.exa_api_key
+        self._fixed_key = api_key
+
+    def _current_key(self) -> str | None:
+        if self._fixed_key:
+            return self._fixed_key
+        return _get_next_key()
 
     @property
     def configured(self) -> bool:
-        return bool(self.api_key)
+        pool = _build_key_pool()
+        return bool(pool or self._fixed_key)
 
-    def _headers(self) -> dict:
+    def _headers(self, key: str) -> dict:
         return {
-            "x-api-key": self.api_key,
+            "x-api-key": key,
             "Content-Type": "application/json",
         }
 
-    @retry(stop=stop_after_attempt(3),
-           wait=wait_exponential(multiplier=1, min=2, max=15),
-           retry=retry_if_exception_type(httpx.HTTPError),
-           reraise=True)
     def _post(self, path: str, payload: dict) -> dict:
-        with httpx.Client(timeout=30) as client:
-            resp = client.post(f"{_ENDPOINT}{path}", json=payload,
-                               headers=self._headers())
-            if resp.status_code == 401:
-                raise SearchProviderError(
-                    "Exa rejected the API key (401). Check EXA_API_KEY in .env."
-                )
-            if resp.status_code == 429:
-                raise httpx.HTTPError("Exa rate limit (429)")
-            resp.raise_for_status()
-            return resp.json()
+        """Try every key in the pool until one works or all fail."""
+        pool = _build_key_pool() if not self._fixed_key else [self._fixed_key]
+        if not pool:
+            raise SearchProviderError("No EXA_API_KEY configured")
+
+        last_error: Exception | None = None
+        tried: set[str] = set()
+
+        for _ in range(len(pool)):
+            key = _get_next_key() if not self._fixed_key else self._fixed_key
+            if key in tried:
+                continue
+            tried.add(key)
+            try:
+                with httpx.Client(timeout=30) as client:
+                    resp = client.post(f"{_ENDPOINT}{path}", json=payload,
+                                       headers=self._headers(key))
+                if resp.status_code == 401:
+                    log.warning("Exa key ...%s rejected (401), trying next key", key[-6:])
+                    last_error = SearchProviderError(f"Key ...{key[-6:]} rejected (401)")
+                    continue
+                if resp.status_code == 429:
+                    log.warning("Exa key ...%s rate-limited (429), trying next key", key[-6:])
+                    last_error = httpx.HTTPError(f"Key ...{key[-6:]} rate limited (429)")
+                    continue
+                resp.raise_for_status()
+                return resp.json()
+            except (httpx.HTTPError, SearchProviderError):
+                raise
+            except Exception as exc:
+                last_error = exc
+                log.warning("Exa key ...%s error: %s", key[-6:], exc)
+                continue
+
+        raise SearchProviderError(
+            f"All {len(pool)} Exa key(s) failed. Last error: {last_error}"
+        )
 
     @staticmethod
     def _parse(data: dict) -> list[SearchResult]:
@@ -73,22 +137,21 @@ class ExaProvider(SearchProvider):
     def search(self, query: str, *, country: str | None = None,
                num: int = 20, page: int = 1) -> list[SearchResult]:
         if not self.configured:
-            raise SearchProviderError("EXA_API_KEY is not set")
+            raise SearchProviderError("No EXA_API_KEY configured")
         payload: dict = {
             "query": query,
             "numResults": min(num, 100),
-            "type": "auto",          # Exa picks neural vs keyword automatically
+            "type": "auto",
             "contents": {
-                "text": {"maxCharacters": 500},  # short snippet for each result
+                "text": {"maxCharacters": 500},
             },
         }
         return self._parse(self._post("/search", payload))
 
     def news(self, query: str, *, country: str | None = None,
              num: int = 10) -> list[SearchResult]:
-        """Exa doesn't have a separate news endpoint — use a recency filter."""
         if not self.configured:
-            raise SearchProviderError("EXA_API_KEY is not set")
+            raise SearchProviderError("No EXA_API_KEY configured")
         from datetime import datetime, timedelta, timezone
         cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
         payload: dict = {

@@ -117,3 +117,57 @@ def test_serper_key_rotation_falls_back_on_error(monkeypatch):
     assert "key2" in calls
     assert len(results) == 1
     assert results[0].url == "https://ok.com"
+
+
+def test_exa_key_rotation(monkeypatch):
+    from app.config import settings
+    from app.providers.search.exa import _build_key_pool, _get_next_key
+    import app.providers.search.exa as exa_mod
+
+    # Reset module state
+    monkeypatch.setattr(exa_mod, "_key_cycle", None)
+    monkeypatch.setattr(exa_mod, "_all_keys", [])
+
+    monkeypatch.setattr(settings, "exa_api_keys", "key_a,key_b,key_c")
+    monkeypatch.setattr(settings, "exa_api_key", "")
+    
+    assert _build_key_pool() == ["key_a", "key_b", "key_c"]
+
+    # Verify rotation works
+    assert _get_next_key() == "key_a"
+    assert _get_next_key() == "key_b"
+    assert _get_next_key() == "key_c"
+    assert _get_next_key() == "key_a"
+
+
+def test_exa_key_rotation_falls_back_on_error(monkeypatch):
+    from app.config import settings
+    from app.providers.search.exa import ExaProvider
+    import app.providers.search.exa as exa_mod
+    import httpx
+
+    # Reset module state
+    monkeypatch.setattr(exa_mod, "_key_cycle", None)
+    monkeypatch.setattr(exa_mod, "_all_keys", [])
+    monkeypatch.setattr(settings, "exa_api_keys", "key1,key2")
+    monkeypatch.setattr(settings, "exa_api_key", "")
+
+    calls = []
+    def mock_post(self, url, json=None, headers=None, **kwargs):
+        key = headers.get("x-api-key")
+        calls.append(key)
+        if key == "key1":
+            return httpx.Response(429, request=httpx.Request("POST", url))
+        else:
+            return httpx.Response(200, json={"results": [{"url": "https://ok.com"}]}, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(httpx.Client, "post", mock_post)
+
+    provider = ExaProvider()
+    results = provider.search("test")
+
+    # Should have tried key1 first, failed, then successfully tried key2
+    assert "key1" in calls
+    assert "key2" in calls
+    assert len(results) == 1
+    assert results[0].url == "https://ok.com"
