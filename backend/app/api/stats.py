@@ -143,8 +143,12 @@ def health(db: Session = Depends(get_db)):
             "missing_columns": [f"{t}.{c}" for t, c in report.missing_columns],
             "run_migrations": report.required_migrations(),
         },
-        "search": {"ok": search.has_provider,
-                   "providers": [p.name for p in search.chain]},
+        "search": {
+            "ok": search.has_provider,
+            "providers": [p.name for p in search.chain],
+            "serper_keys_count": len(serper_pool()),
+            "exa_keys_count": len(exa_pool()),
+        },
         "llm": {"ok": llm.available, "providers": [p.name for p in llm.chain]},
         "environment": settings.environment,
     }
