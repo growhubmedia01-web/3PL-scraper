@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import admin, companies, export, opportunities, pipeline, services, stats
+from app.api.admin import _open_router as admin_open_router
 from app.config import settings
 
 logging.basicConfig(
@@ -39,7 +40,8 @@ app.add_middleware(
 )
 
 for router in (services.router, companies.router, opportunities.router,
-               stats.router, pipeline.router, export.router, admin.router):
+               stats.router, pipeline.router, export.router, admin.router,
+               admin_open_router):
     app.include_router(router)
 
 
