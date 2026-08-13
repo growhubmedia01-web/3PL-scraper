@@ -40,6 +40,19 @@ if _is_sqlite:
         cur.execute("PRAGMA journal_mode=WAL")
         cur.execute("PRAGMA foreign_keys=ON")
         cur.close()
+else:
+    @event.listens_for(engine, "connect")
+    def _pg_no_prepared_stmts(dbapi_conn, _):
+        """Belt-and-suspenders: ensure every pooled connection has prepared
+        statements disabled, even if the connection was recycled.
+
+        Supabase's PgBouncer transaction pooler does not persist prepared
+        statements across connections. Without this, psycopg3 may try to
+        execute a named prepared statement on a different backend connection
+        that has never seen that statement, causing InvalidSqlStatementName.
+        """
+        dbapi_conn.prepare_threshold = 0
+
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False,
                            class_=Session, future=True)
