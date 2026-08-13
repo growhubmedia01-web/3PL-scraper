@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     # ---- search ----
     search_provider: str = "serper"
     serper_api_key: str = ""
+    serper_api_keys: str = ""
     serpapi_key: str = ""
     brave_search_api_key: str = ""
     exa_api_key: str = ""
