@@ -25,8 +25,6 @@ from app.schemas import (
 router = APIRouter(prefix="/api/admin", tags=["admin"],
                    dependencies=[Depends(require_admin)])
 
-# Separate unauthenticated router for one-time migration (remove after use)
-_open_router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 def _service(db: Session, ref: str) -> Service:
@@ -221,7 +219,7 @@ def list_suppressions(db: Session = Depends(get_db)):
              "reason": r.reason, "created_at": r.created_at} for r in rows]
 
 
-@_open_router.post("/run-migration")
+@router.post("/run-migration")
 def run_migration(db: Session = Depends(get_db)):
     """Apply migration 004: add business_model and sales_channels columns.
     Safe to run multiple times (IF NOT EXISTS guards)."""
