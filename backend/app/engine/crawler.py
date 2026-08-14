@@ -138,7 +138,14 @@ def crawl_company(db: Session, company: Company,
     base = company.website or root_url(company.domain)
 
     company.status = "crawling"
-    db.flush()
+    try:
+        with db.begin_nested():  # SAVEPOINT - a lock error here must not
+            db.flush()           # poison the outer transaction.
+    except Exception as exc:
+        log.warning("Could not lock %s for crawling (%s) - skipping",
+                    company.domain, exc)
+        result.error = f"lock conflict: {exc}"
+        return result
 
     timeout = httpx.Timeout(settings.crawl_timeout_seconds)
     try:
