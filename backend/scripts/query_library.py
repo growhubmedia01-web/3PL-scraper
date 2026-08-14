@@ -51,6 +51,68 @@ FULFILLMENT_SIGNALS = [
     "retail fulfillment", "omnichannel",
 ]
 
+# ---- NEW: 3PL-intent vocabularies ----------------------------------------
+
+# Companies that physically move goods -- prime 3PL prospects
+IMPORTER_TERMS = [
+    "importer", "we import", "importer exporter", "import export company",
+    "wholesale importer", "consumer goods importer", "product importer",
+    "goods importer", "merchandise importer",
+]
+
+DISTRIBUTOR_TERMS = [
+    "distributor", "wholesale distributor", "product distributor",
+    "national distributor", "regional distributor", "exclusive distributor",
+    "consumer goods distributor", "multi-channel distributor",
+]
+
+WHOLESALER_TERMS = [
+    "wholesaler", "wholesale brand", "wholesale company", "B2B brand",
+    "trade brand", "trade supplier", "bulk supplier",
+    "retailer and wholesaler", "retail and wholesale brand",
+]
+
+# Amazon/marketplace sellers looking to diversify fulfillment
+MARKETPLACE_SELLER_TERMS = [
+    "Amazon seller", "Amazon FBA seller", "Amazon brand", "FBA brand",
+    "multi-channel seller", "marketplace brand", "Amazon private label brand",
+    "Etsy shop", "eBay seller brand", "TikTok shop brand",
+]
+
+MARKETPLACE_PAIN_TERMS = [
+    "leaving Amazon FBA", "FBA alternatives", "move from FBA to 3PL",
+    "Amazon FBA fees too high", "Amazon seller switching fulfillment",
+    "multi-channel fulfillment", "own fulfillment center",
+    "fulfillment partner", "outsource fulfillment",
+]
+
+# Subscription box / recurring revenue physical goods
+SUBSCRIPTION_CATEGORIES = [
+    "subscription box", "subscription kit", "monthly box",
+    "subscription snack box", "subscription beauty box", "subscription coffee",
+    "subscription pet box", "subscription book box", "subscription wellness box",
+    "subscription toy box", "subscription wine club", "subscription meal kit",
+    "curated subscription box", "niche subscription box",
+]
+
+# Brands showing capacity / growth strain -- most likely to switch 3PL
+CAPACITY_PAIN_TERMS = [
+    "outgrowing warehouse", "warehouse capacity", "new warehouse",
+    "expanding warehouse", "distribution center expansion",
+    "fulfillment partner", "fulfillment solution", "outsource logistics",
+    "logistics partner", "3PL partner", "third party logistics partner",
+    "peak season fulfillment", "holiday fulfillment",
+    "scaling fulfillment", "fulfillment challenges",
+]
+
+# High-specificity manufacturer signals
+MANUFACTURER_SIGNALS = [
+    "contract manufacturer", "OEM manufacturer", "product manufacturer",
+    "we manufacture", "made in USA brand", "made in UK brand",
+    "private label manufacturer", "white label brand",
+    "small batch manufacturer", "artisan manufacturer",
+]
+
 COMPANY_TERMS = [
     "manufacturer", "retailer", "online retailer", "ecommerce company",
     "consumer goods company", "consumer products company", "product company",
@@ -220,6 +282,52 @@ class Query:
 # =====================================================================
 # GENERATION
 # =====================================================================
+def _tier1_3pl_intent() -> list[Query]:
+    """Highest-intent 3PL queries: companies actively seeking fulfillment,
+    importers/distributors, subscription boxes, and Amazon-leaving brands.
+
+    These are tier-1 because they show explicit logistics pain -- the
+    strongest predictor that a company needs a 3PL right now.
+    """
+    out: list[Query] = []
+
+    # Importers + distributors across physical product categories
+    for group, cats in CATEGORIES.items():
+        for cat in cats:
+            for term in IMPORTER_TERMS[:4]:   # top 4 to keep volume manageable
+                out.append(Query(f"{term} {cat} company", 1, None, "Importer"))
+                out.append(Query(f"{cat} {term}", 1, None, "Importer"))
+            for term in DISTRIBUTOR_TERMS[:3]:
+                out.append(Query(f"{cat} {term}", 1, None, "Distributor"))
+            for term in WHOLESALER_TERMS[:3]:
+                out.append(Query(f"{cat} {term}", 1, None, "Wholesaler"))
+
+    # Subscription box categories (very high 3PL conversion rate)
+    for sub in SUBSCRIPTION_CATEGORIES:
+        out.append(Query(sub, 1, None, "Subscription"))
+        out.append(Query(f"best {sub} brands", 1, None, "Subscription"))
+        out.append(Query(f"top {sub} companies", 1, None, "Subscription"))
+
+    # Amazon / marketplace sellers looking to move fulfillment
+    for term in MARKETPLACE_SELLER_TERMS:
+        out.append(Query(term, 1, None, "Marketplace Seller"))
+        out.append(Query(f"{term} ecommerce brand", 1, None, "Marketplace Seller"))
+    for pain in MARKETPLACE_PAIN_TERMS:
+        out.append(Query(pain, 1, None, "Marketplace Pain"))
+
+    # Capacity / logistics pain signals
+    for pain in CAPACITY_PAIN_TERMS:
+        out.append(Query(f"ecommerce brand {pain}", 1, None, "Capacity Pain"))
+        out.append(Query(f"online retailer {pain}", 1, None, "Capacity Pain"))
+
+    # Manufacturer brands (make + sell direct = prime 3PL prospect)
+    for sig in MANUFACTURER_SIGNALS:
+        out.append(Query(sig, 1, None, "Manufacturer"))
+        out.append(Query(f"{sig} ecommerce", 1, None, "Manufacturer"))
+
+    return out
+
+
 def _tier1() -> list[Query]:
     """Platform + category, and DTC/ecommerce + category.
 
@@ -327,7 +435,8 @@ def _tier4() -> list[Query]:
 def build_library() -> list[Query]:
     """All tiers, deduplicated keeping the best (lowest) tier."""
     seen: dict[tuple[str, str | None], Query] = {}
-    for query in _tier1() + _tier2() + _tier3() + _tier4():
+    for query in (_tier1_3pl_intent() + _tier1() + _tier2()
+                  + _tier3() + _tier4()):
         text = " ".join(query.text.split())
         if not text or len(text) > 180:
             continue

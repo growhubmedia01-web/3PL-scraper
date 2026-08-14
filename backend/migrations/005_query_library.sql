@@ -1,12 +1,12 @@
 -- =====================================================================
 -- 005  DISCOVERY QUERY LIBRARY
 --
--- 6,842 Serper queries generated from
+-- 8,432 Serper queries generated from
 -- BUSINESS MODEL x CATEGORY x PATTERN x PLATFORM x GROWTH x GEOGRAPHY.
 --
 -- Tiers (stored in discovery_queries.priority):
---   1    630  platform + category, DTC + category   <- run these first
---   2   2835  business model x category
+--   1   2221  platform + category, DTC + category   <- run these first
+--   2   2834  business model x category
 --   3   2288  growth, directories, alt terminology
 --   4   1089  geographic fan-out and broad discovery
 --
@@ -15,7 +15,7 @@
 --
 -- GENERATED FILE - do not edit directly.
 -- Rebuild: python -m scripts.build_query_library
--- Generated 2026-08-12
+-- Generated 2026-08-14
 -- =====================================================================
 
 -- Tier selection needs this index once the table is large.
@@ -35,7 +35,7 @@ where slug = '3pl';
 
 
 -- ---------------------------------------------------------------------
--- queries 1-400 of 6,842
+-- queries 1-400 of 8,432
 -- ---------------------------------------------------------------------
 insert into discovery_queries (service_id, query, country, priority)
 select s.id, v.query, v.country, v.priority
@@ -155,6 +155,365 @@ from services s,
  ('skincare direct to consumer brands', null, 1),
  ('skincare ecommerce brands', null, 1),
  ('skincare online stores', null, 1),
+ ('ecommerce brand 3PL partner', null, 1),
+ ('ecommerce brand distribution center expansion', null, 1),
+ ('ecommerce brand expanding warehouse', null, 1),
+ ('ecommerce brand fulfillment challenges', null, 1),
+ ('ecommerce brand fulfillment partner', null, 1),
+ ('ecommerce brand fulfillment solution', null, 1),
+ ('ecommerce brand holiday fulfillment', null, 1),
+ ('ecommerce brand logistics partner', null, 1),
+ ('ecommerce brand new warehouse', null, 1),
+ ('ecommerce brand outgrowing warehouse', null, 1),
+ ('ecommerce brand outsource logistics', null, 1),
+ ('ecommerce brand peak season fulfillment', null, 1),
+ ('ecommerce brand scaling fulfillment', null, 1),
+ ('ecommerce brand third party logistics partner', null, 1),
+ ('ecommerce brand warehouse capacity', null, 1),
+ ('online retailer 3PL partner', null, 1),
+ ('online retailer distribution center expansion', null, 1),
+ ('online retailer expanding warehouse', null, 1),
+ ('online retailer fulfillment challenges', null, 1),
+ ('online retailer fulfillment partner', null, 1),
+ ('online retailer fulfillment solution', null, 1),
+ ('online retailer holiday fulfillment', null, 1),
+ ('online retailer logistics partner', null, 1),
+ ('online retailer new warehouse', null, 1),
+ ('online retailer outgrowing warehouse', null, 1),
+ ('online retailer outsource logistics', null, 1),
+ ('online retailer peak season fulfillment', null, 1),
+ ('online retailer scaling fulfillment', null, 1),
+ ('online retailer third party logistics partner', null, 1),
+ ('online retailer warehouse capacity', null, 1),
+ ('accessories distributor', null, 1),
+ ('accessories product distributor', null, 1),
+ ('accessories wholesale distributor', null, 1),
+ ('activewear distributor', null, 1),
+ ('activewear product distributor', null, 1),
+ ('activewear wholesale distributor', null, 1),
+ ('animal products distributor', null, 1),
+ ('animal products product distributor', null, 1),
+ ('animal products wholesale distributor', null, 1),
+ ('apparel distributor', null, 1),
+ ('apparel product distributor', null, 1),
+ ('apparel wholesale distributor', null, 1),
+ ('audio products distributor', null, 1),
+ ('audio products product distributor', null, 1),
+ ('audio products wholesale distributor', null, 1),
+ ('automotive accessories distributor', null, 1),
+ ('automotive accessories product distributor', null, 1),
+ ('automotive accessories wholesale distributor', null, 1),
+ ('baby accessories distributor', null, 1),
+ ('baby accessories product distributor', null, 1),
+ ('baby accessories wholesale distributor', null, 1),
+ ('baby care distributor', null, 1),
+ ('baby care product distributor', null, 1),
+ ('baby care wholesale distributor', null, 1),
+ ('baby clothing distributor', null, 1),
+ ('baby clothing product distributor', null, 1),
+ ('baby clothing wholesale distributor', null, 1),
+ ('baby products distributor', null, 1),
+ ('baby products product distributor', null, 1),
+ ('baby products wholesale distributor', null, 1),
+ ('bags distributor', null, 1),
+ ('bags product distributor', null, 1),
+ ('bags wholesale distributor', null, 1),
+ ('beauty distributor', null, 1),
+ ('beauty product distributor', null, 1),
+ ('beauty wholesale distributor', null, 1),
+ ('bedding distributor', null, 1),
+ ('bedding product distributor', null, 1),
+ ('bedding wholesale distributor', null, 1),
+ ('beverage distributor', null, 1),
+ ('beverage product distributor', null, 1),
+ ('beverage wholesale distributor', null, 1),
+ ('body care distributor', null, 1),
+ ('body care product distributor', null, 1),
+ ('body care wholesale distributor', null, 1),
+ ('camping gear distributor', null, 1),
+ ('camping gear product distributor', null, 1),
+ ('camping gear wholesale distributor', null, 1),
+ ('candy distributor', null, 1),
+ ('candy product distributor', null, 1),
+ ('candy wholesale distributor', null, 1),
+ ('car accessories distributor', null, 1),
+ ('car accessories product distributor', null, 1),
+ ('car accessories wholesale distributor', null, 1),
+ ('cat products distributor', null, 1),
+ ('cat products product distributor', null, 1),
+ ('cat products wholesale distributor', null, 1),
+ ('children''s products distributor', null, 1),
+ ('children''s products product distributor', null, 1),
+ ('children''s products wholesale distributor', null, 1),
+ ('chocolate distributor', null, 1),
+ ('chocolate product distributor', null, 1),
+ ('chocolate wholesale distributor', null, 1),
+ ('clothing distributor', null, 1),
+ ('clothing product distributor', null, 1),
+ ('clothing wholesale distributor', null, 1),
+ ('coffee distributor', null, 1),
+ ('coffee product distributor', null, 1),
+ ('coffee wholesale distributor', null, 1),
+ ('collectibles distributor', null, 1),
+ ('collectibles product distributor', null, 1),
+ ('collectibles wholesale distributor', null, 1),
+ ('computer accessories distributor', null, 1),
+ ('computer accessories product distributor', null, 1),
+ ('computer accessories wholesale distributor', null, 1),
+ ('consumer electronics distributor', null, 1),
+ ('consumer electronics product distributor', null, 1),
+ ('consumer electronics wholesale distributor', null, 1),
+ ('cookware distributor', null, 1),
+ ('cookware product distributor', null, 1),
+ ('cookware wholesale distributor', null, 1),
+ ('cosmetics distributor', null, 1),
+ ('cosmetics product distributor', null, 1),
+ ('cosmetics wholesale distributor', null, 1),
+ ('craft products distributor', null, 1),
+ ('craft products product distributor', null, 1),
+ ('craft products wholesale distributor', null, 1),
+ ('cycling products distributor', null, 1),
+ ('cycling products product distributor', null, 1),
+ ('cycling products wholesale distributor', null, 1),
+ ('dog products distributor', null, 1),
+ ('dog products product distributor', null, 1),
+ ('dog products wholesale distributor', null, 1),
+ ('educational toys distributor', null, 1),
+ ('educational toys product distributor', null, 1),
+ ('educational toys wholesale distributor', null, 1),
+ ('electronics accessories distributor', null, 1),
+ ('electronics accessories product distributor', null, 1),
+ ('electronics accessories wholesale distributor', null, 1),
+ ('fashion distributor', null, 1),
+ ('fashion product distributor', null, 1),
+ ('fashion wholesale distributor', null, 1),
+ ('fishing products distributor', null, 1),
+ ('fishing products product distributor', null, 1),
+ ('fishing products wholesale distributor', null, 1),
+ ('fitness equipment distributor', null, 1),
+ ('fitness equipment product distributor', null, 1),
+ ('fitness equipment wholesale distributor', null, 1),
+ ('fitness products distributor', null, 1),
+ ('fitness products product distributor', null, 1),
+ ('fitness products wholesale distributor', null, 1),
+ ('food distributor', null, 1),
+ ('food product distributor', null, 1),
+ ('food wholesale distributor', null, 1),
+ ('footwear distributor', null, 1),
+ ('footwear product distributor', null, 1),
+ ('footwear wholesale distributor', null, 1),
+ ('fragrance distributor', null, 1),
+ ('fragrance product distributor', null, 1),
+ ('fragrance wholesale distributor', null, 1),
+ ('furniture distributor', null, 1),
+ ('furniture product distributor', null, 1),
+ ('furniture wholesale distributor', null, 1),
+ ('gaming accessories distributor', null, 1),
+ ('gaming accessories product distributor', null, 1),
+ ('gaming accessories wholesale distributor', null, 1),
+ ('garden products distributor', null, 1),
+ ('garden products product distributor', null, 1),
+ ('garden products wholesale distributor', null, 1),
+ ('gifts distributor', null, 1),
+ ('gifts product distributor', null, 1),
+ ('gifts wholesale distributor', null, 1),
+ ('grooming distributor', null, 1),
+ ('grooming product distributor', null, 1),
+ ('grooming wholesale distributor', null, 1),
+ ('gym equipment distributor', null, 1),
+ ('gym equipment product distributor', null, 1),
+ ('gym equipment wholesale distributor', null, 1),
+ ('hair products distributor', null, 1),
+ ('hair products product distributor', null, 1),
+ ('hair products wholesale distributor', null, 1),
+ ('haircare distributor', null, 1),
+ ('haircare product distributor', null, 1),
+ ('haircare wholesale distributor', null, 1),
+ ('handbags distributor', null, 1),
+ ('handbags product distributor', null, 1),
+ ('handbags wholesale distributor', null, 1),
+ ('hardware distributor', null, 1),
+ ('hardware product distributor', null, 1),
+ ('hardware wholesale distributor', null, 1),
+ ('health food distributor', null, 1),
+ ('health food product distributor', null, 1),
+ ('health food wholesale distributor', null, 1),
+ ('health products distributor', null, 1),
+ ('health products product distributor', null, 1),
+ ('health products wholesale distributor', null, 1),
+ ('healthy food distributor', null, 1),
+ ('healthy food product distributor', null, 1),
+ ('healthy food wholesale distributor', null, 1),
+ ('hiking gear distributor', null, 1),
+ ('hiking gear product distributor', null, 1),
+ ('hiking gear wholesale distributor', null, 1),
+ ('hobby products distributor', null, 1),
+ ('hobby products product distributor', null, 1),
+ ('hobby products wholesale distributor', null, 1),
+ ('home decor distributor', null, 1),
+ ('home decor product distributor', null, 1),
+ ('home decor wholesale distributor', null, 1),
+ ('home goods distributor', null, 1),
+ ('home goods product distributor', null, 1),
+ ('home goods wholesale distributor', null, 1),
+ ('home organization distributor', null, 1),
+ ('home organization product distributor', null, 1),
+ ('home organization wholesale distributor', null, 1),
+ ('household products distributor', null, 1),
+ ('household products product distributor', null, 1),
+ ('household products wholesale distributor', null, 1),
+ ('jewelry distributor', null, 1),
+ ('jewelry product distributor', null, 1),
+ ('jewelry wholesale distributor', null, 1),
+ ('kids products distributor', null, 1),
+ ('kids products product distributor', null, 1),
+ ('kids products wholesale distributor', null, 1),
+ ('kitchen products distributor', null, 1),
+ ('kitchen products product distributor', null, 1),
+ ('kitchen products wholesale distributor', null, 1),
+ ('leather goods distributor', null, 1),
+ ('leather goods product distributor', null, 1),
+ ('leather goods wholesale distributor', null, 1),
+ ('lifestyle products distributor', null, 1),
+ ('lifestyle products product distributor', null, 1),
+ ('lifestyle products wholesale distributor', null, 1),
+ ('lighting distributor', null, 1),
+ ('lighting product distributor', null, 1),
+ ('lighting wholesale distributor', null, 1),
+ ('luxury goods distributor', null, 1),
+ ('luxury goods product distributor', null, 1),
+ ('luxury goods wholesale distributor', null, 1),
+ ('makeup distributor', null, 1),
+ ('makeup product distributor', null, 1),
+ ('makeup wholesale distributor', null, 1),
+ ('mattresses distributor', null, 1),
+ ('mattresses product distributor', null, 1),
+ ('mattresses wholesale distributor', null, 1),
+ ('meal kits distributor', null, 1),
+ ('meal kits product distributor', null, 1),
+ ('meal kits wholesale distributor', null, 1),
+ ('musical instruments distributor', null, 1),
+ ('musical instruments product distributor', null, 1),
+ ('musical instruments wholesale distributor', null, 1),
+ ('nutrition distributor', null, 1),
+ ('nutrition product distributor', null, 1),
+ ('nutrition wholesale distributor', null, 1),
+ ('nutritional products distributor', null, 1),
+ ('nutritional products product distributor', null, 1),
+ ('nutritional products wholesale distributor', null, 1),
+ ('office products distributor', null, 1),
+ ('office products product distributor', null, 1),
+ ('office products wholesale distributor', null, 1),
+ ('organic food distributor', null, 1),
+ ('organic food product distributor', null, 1),
+ ('organic food wholesale distributor', null, 1),
+ ('outdoor gear distributor', null, 1),
+ ('outdoor gear product distributor', null, 1),
+ ('outdoor gear wholesale distributor', null, 1),
+ ('packaged food distributor', null, 1),
+ ('packaged food product distributor', null, 1),
+ ('packaged food wholesale distributor', null, 1),
+ ('perfume distributor', null, 1),
+ ('perfume product distributor', null, 1),
+ ('perfume wholesale distributor', null, 1),
+ ('personal care distributor', null, 1),
+ ('personal care product distributor', null, 1),
+ ('personal care wholesale distributor', null, 1),
+ ('pet accessories distributor', null, 1),
+ ('pet accessories product distributor', null, 1),
+ ('pet accessories wholesale distributor', null, 1),
+ ('pet food distributor', null, 1),
+ ('pet food product distributor', null, 1),
+ ('pet food wholesale distributor', null, 1),
+ ('pet products distributor', null, 1),
+ ('pet products product distributor', null, 1),
+ ('pet products wholesale distributor', null, 1),
+ ('pet supplies distributor', null, 1),
+ ('pet supplies product distributor', null, 1),
+ ('pet supplies wholesale distributor', null, 1),
+ ('phone accessories distributor', null, 1),
+ ('phone accessories product distributor', null, 1),
+ ('phone accessories wholesale distributor', null, 1),
+ ('protein distributor', null, 1),
+ ('protein product distributor', null, 1),
+ ('protein wholesale distributor', null, 1),
+ ('running products distributor', null, 1),
+ ('running products product distributor', null, 1),
+ ('running products wholesale distributor', null, 1),
+ ('shoes distributor', null, 1)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 401-800 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
+ ('shoes product distributor', null, 1),
+ ('shoes wholesale distributor', null, 1),
+ ('skincare distributor', null, 1),
+ ('skincare product distributor', null, 1),
+ ('skincare wholesale distributor', null, 1),
+ ('smart home products distributor', null, 1),
+ ('smart home products product distributor', null, 1),
+ ('smart home products wholesale distributor', null, 1),
+ ('snack distributor', null, 1),
+ ('snack product distributor', null, 1),
+ ('snack wholesale distributor', null, 1),
+ ('sneakers distributor', null, 1),
+ ('sneakers product distributor', null, 1),
+ ('sneakers wholesale distributor', null, 1),
+ ('specialty food distributor', null, 1),
+ ('specialty food product distributor', null, 1),
+ ('specialty food wholesale distributor', null, 1),
+ ('sporting goods distributor', null, 1),
+ ('sporting goods product distributor', null, 1),
+ ('sporting goods wholesale distributor', null, 1),
+ ('sports equipment distributor', null, 1),
+ ('sports equipment product distributor', null, 1),
+ ('sports equipment wholesale distributor', null, 1),
+ ('sports nutrition distributor', null, 1),
+ ('sports nutrition product distributor', null, 1),
+ ('sports nutrition wholesale distributor', null, 1),
+ ('sportswear distributor', null, 1),
+ ('sportswear product distributor', null, 1),
+ ('sportswear wholesale distributor', null, 1),
+ ('stationery distributor', null, 1),
+ ('stationery product distributor', null, 1),
+ ('stationery wholesale distributor', null, 1),
+ ('streetwear distributor', null, 1),
+ ('streetwear product distributor', null, 1),
+ ('streetwear wholesale distributor', null, 1),
+ ('supplements distributor', null, 1),
+ ('supplements product distributor', null, 1),
+ ('supplements wholesale distributor', null, 1),
+ ('tea distributor', null, 1),
+ ('tea product distributor', null, 1),
+ ('tea wholesale distributor', null, 1),
+ ('tools distributor', null, 1),
+ ('tools product distributor', null, 1),
+ ('tools wholesale distributor', null, 1),
+ ('toys distributor', null, 1),
+ ('toys product distributor', null, 1),
+ ('toys wholesale distributor', null, 1),
+ ('vitamins distributor', null, 1),
+ ('vitamins product distributor', null, 1),
+ ('vitamins wholesale distributor', null, 1),
+ ('watches distributor', null, 1),
+ ('watches product distributor', null, 1),
+ ('watches wholesale distributor', null, 1),
+ ('wearable technology distributor', null, 1),
+ ('wearable technology product distributor', null, 1),
+ ('wearable technology wholesale distributor', null, 1),
+ ('wellness distributor', null, 1),
+ ('wellness product distributor', null, 1),
+ ('wellness wholesale distributor', null, 1),
  ('DTC audio products brands', null, 1),
  ('DTC computer accessories brands', null, 1),
  ('DTC consumer electronics brands', null, 1),
@@ -440,21 +799,7 @@ from services s,
  ('Shopify bedding stores', null, 1),
  ('Shopify cookware brands', null, 1),
  ('Shopify cookware stores', null, 1),
- ('Shopify furniture brands', null, 1)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 401-800 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('Shopify furniture brands', null, 1),
  ('Shopify furniture stores', null, 1),
  ('Shopify garden products brands', null, 1),
  ('Shopify garden products stores', null, 1),
@@ -505,6 +850,937 @@ from services s,
  ('mattresses direct to consumer brands', null, 1),
  ('mattresses ecommerce brands', null, 1),
  ('mattresses online stores', null, 1),
+ ('accessories import export company', null, 1),
+ ('accessories importer', null, 1),
+ ('accessories importer exporter', null, 1),
+ ('accessories we import', null, 1),
+ ('activewear import export company', null, 1)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 801-1,200 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
+ ('activewear importer', null, 1),
+ ('activewear importer exporter', null, 1),
+ ('activewear we import', null, 1),
+ ('animal products import export company', null, 1),
+ ('animal products importer', null, 1),
+ ('animal products importer exporter', null, 1),
+ ('animal products we import', null, 1),
+ ('apparel import export company', null, 1),
+ ('apparel importer', null, 1),
+ ('apparel importer exporter', null, 1),
+ ('apparel we import', null, 1),
+ ('audio products import export company', null, 1),
+ ('audio products importer', null, 1),
+ ('audio products importer exporter', null, 1),
+ ('audio products we import', null, 1),
+ ('automotive accessories import export company', null, 1),
+ ('automotive accessories importer', null, 1),
+ ('automotive accessories importer exporter', null, 1),
+ ('automotive accessories we import', null, 1),
+ ('baby accessories import export company', null, 1),
+ ('baby accessories importer', null, 1),
+ ('baby accessories importer exporter', null, 1),
+ ('baby accessories we import', null, 1),
+ ('baby care import export company', null, 1),
+ ('baby care importer', null, 1),
+ ('baby care importer exporter', null, 1),
+ ('baby care we import', null, 1),
+ ('baby clothing import export company', null, 1),
+ ('baby clothing importer', null, 1),
+ ('baby clothing importer exporter', null, 1),
+ ('baby clothing we import', null, 1),
+ ('baby products import export company', null, 1),
+ ('baby products importer', null, 1),
+ ('baby products importer exporter', null, 1),
+ ('baby products we import', null, 1),
+ ('bags import export company', null, 1),
+ ('bags importer', null, 1),
+ ('bags importer exporter', null, 1),
+ ('bags we import', null, 1),
+ ('beauty import export company', null, 1),
+ ('beauty importer', null, 1),
+ ('beauty importer exporter', null, 1),
+ ('beauty we import', null, 1),
+ ('bedding import export company', null, 1),
+ ('bedding importer', null, 1),
+ ('bedding importer exporter', null, 1),
+ ('bedding we import', null, 1),
+ ('beverage import export company', null, 1),
+ ('beverage importer', null, 1),
+ ('beverage importer exporter', null, 1),
+ ('beverage we import', null, 1),
+ ('body care import export company', null, 1),
+ ('body care importer', null, 1),
+ ('body care importer exporter', null, 1),
+ ('body care we import', null, 1),
+ ('camping gear import export company', null, 1),
+ ('camping gear importer', null, 1),
+ ('camping gear importer exporter', null, 1),
+ ('camping gear we import', null, 1),
+ ('candy import export company', null, 1),
+ ('candy importer', null, 1),
+ ('candy importer exporter', null, 1),
+ ('candy we import', null, 1),
+ ('car accessories import export company', null, 1),
+ ('car accessories importer', null, 1),
+ ('car accessories importer exporter', null, 1),
+ ('car accessories we import', null, 1),
+ ('cat products import export company', null, 1),
+ ('cat products importer', null, 1),
+ ('cat products importer exporter', null, 1),
+ ('cat products we import', null, 1),
+ ('children''s products import export company', null, 1),
+ ('children''s products importer', null, 1),
+ ('children''s products importer exporter', null, 1),
+ ('children''s products we import', null, 1),
+ ('chocolate import export company', null, 1),
+ ('chocolate importer', null, 1),
+ ('chocolate importer exporter', null, 1),
+ ('chocolate we import', null, 1),
+ ('clothing import export company', null, 1),
+ ('clothing importer', null, 1),
+ ('clothing importer exporter', null, 1),
+ ('clothing we import', null, 1),
+ ('coffee import export company', null, 1),
+ ('coffee importer', null, 1),
+ ('coffee importer exporter', null, 1),
+ ('coffee we import', null, 1),
+ ('collectibles import export company', null, 1),
+ ('collectibles importer', null, 1),
+ ('collectibles importer exporter', null, 1),
+ ('collectibles we import', null, 1),
+ ('computer accessories import export company', null, 1),
+ ('computer accessories importer', null, 1),
+ ('computer accessories importer exporter', null, 1),
+ ('computer accessories we import', null, 1),
+ ('consumer electronics import export company', null, 1),
+ ('consumer electronics importer', null, 1),
+ ('consumer electronics importer exporter', null, 1),
+ ('consumer electronics we import', null, 1),
+ ('cookware import export company', null, 1),
+ ('cookware importer', null, 1),
+ ('cookware importer exporter', null, 1),
+ ('cookware we import', null, 1),
+ ('cosmetics import export company', null, 1),
+ ('cosmetics importer', null, 1),
+ ('cosmetics importer exporter', null, 1),
+ ('cosmetics we import', null, 1),
+ ('craft products import export company', null, 1),
+ ('craft products importer', null, 1),
+ ('craft products importer exporter', null, 1),
+ ('craft products we import', null, 1),
+ ('cycling products import export company', null, 1),
+ ('cycling products importer', null, 1),
+ ('cycling products importer exporter', null, 1),
+ ('cycling products we import', null, 1),
+ ('dog products import export company', null, 1),
+ ('dog products importer', null, 1),
+ ('dog products importer exporter', null, 1),
+ ('dog products we import', null, 1),
+ ('educational toys import export company', null, 1),
+ ('educational toys importer', null, 1),
+ ('educational toys importer exporter', null, 1),
+ ('educational toys we import', null, 1),
+ ('electronics accessories import export company', null, 1),
+ ('electronics accessories importer', null, 1),
+ ('electronics accessories importer exporter', null, 1),
+ ('electronics accessories we import', null, 1),
+ ('fashion import export company', null, 1),
+ ('fashion importer', null, 1),
+ ('fashion importer exporter', null, 1),
+ ('fashion we import', null, 1),
+ ('fishing products import export company', null, 1),
+ ('fishing products importer', null, 1),
+ ('fishing products importer exporter', null, 1),
+ ('fishing products we import', null, 1),
+ ('fitness equipment import export company', null, 1),
+ ('fitness equipment importer', null, 1),
+ ('fitness equipment importer exporter', null, 1),
+ ('fitness equipment we import', null, 1),
+ ('fitness products import export company', null, 1),
+ ('fitness products importer', null, 1),
+ ('fitness products importer exporter', null, 1),
+ ('fitness products we import', null, 1),
+ ('food import export company', null, 1),
+ ('food importer', null, 1),
+ ('food importer exporter', null, 1),
+ ('food we import', null, 1),
+ ('footwear import export company', null, 1),
+ ('footwear importer', null, 1),
+ ('footwear importer exporter', null, 1),
+ ('footwear we import', null, 1),
+ ('fragrance import export company', null, 1),
+ ('fragrance importer', null, 1),
+ ('fragrance importer exporter', null, 1),
+ ('fragrance we import', null, 1),
+ ('furniture import export company', null, 1),
+ ('furniture importer', null, 1),
+ ('furniture importer exporter', null, 1),
+ ('furniture we import', null, 1),
+ ('gaming accessories import export company', null, 1),
+ ('gaming accessories importer', null, 1),
+ ('gaming accessories importer exporter', null, 1),
+ ('gaming accessories we import', null, 1),
+ ('garden products import export company', null, 1),
+ ('garden products importer', null, 1),
+ ('garden products importer exporter', null, 1),
+ ('garden products we import', null, 1),
+ ('gifts import export company', null, 1),
+ ('gifts importer', null, 1),
+ ('gifts importer exporter', null, 1),
+ ('gifts we import', null, 1),
+ ('grooming import export company', null, 1),
+ ('grooming importer', null, 1),
+ ('grooming importer exporter', null, 1),
+ ('grooming we import', null, 1),
+ ('gym equipment import export company', null, 1),
+ ('gym equipment importer', null, 1),
+ ('gym equipment importer exporter', null, 1),
+ ('gym equipment we import', null, 1),
+ ('hair products import export company', null, 1),
+ ('hair products importer', null, 1),
+ ('hair products importer exporter', null, 1),
+ ('hair products we import', null, 1),
+ ('haircare import export company', null, 1),
+ ('haircare importer', null, 1),
+ ('haircare importer exporter', null, 1),
+ ('haircare we import', null, 1),
+ ('handbags import export company', null, 1),
+ ('handbags importer', null, 1),
+ ('handbags importer exporter', null, 1),
+ ('handbags we import', null, 1),
+ ('hardware import export company', null, 1),
+ ('hardware importer', null, 1),
+ ('hardware importer exporter', null, 1),
+ ('hardware we import', null, 1),
+ ('health food import export company', null, 1),
+ ('health food importer', null, 1),
+ ('health food importer exporter', null, 1),
+ ('health food we import', null, 1),
+ ('health products import export company', null, 1),
+ ('health products importer', null, 1),
+ ('health products importer exporter', null, 1),
+ ('health products we import', null, 1),
+ ('healthy food import export company', null, 1),
+ ('healthy food importer', null, 1),
+ ('healthy food importer exporter', null, 1),
+ ('healthy food we import', null, 1),
+ ('hiking gear import export company', null, 1),
+ ('hiking gear importer', null, 1),
+ ('hiking gear importer exporter', null, 1),
+ ('hiking gear we import', null, 1),
+ ('hobby products import export company', null, 1),
+ ('hobby products importer', null, 1),
+ ('hobby products importer exporter', null, 1),
+ ('hobby products we import', null, 1),
+ ('home decor import export company', null, 1),
+ ('home decor importer', null, 1),
+ ('home decor importer exporter', null, 1),
+ ('home decor we import', null, 1),
+ ('home goods import export company', null, 1),
+ ('home goods importer', null, 1),
+ ('home goods importer exporter', null, 1),
+ ('home goods we import', null, 1),
+ ('home organization import export company', null, 1),
+ ('home organization importer', null, 1),
+ ('home organization importer exporter', null, 1),
+ ('home organization we import', null, 1),
+ ('household products import export company', null, 1),
+ ('household products importer', null, 1),
+ ('household products importer exporter', null, 1),
+ ('household products we import', null, 1),
+ ('import export company accessories company', null, 1),
+ ('import export company activewear company', null, 1),
+ ('import export company animal products company', null, 1),
+ ('import export company apparel company', null, 1),
+ ('import export company audio products company', null, 1),
+ ('import export company automotive accessories company', null, 1),
+ ('import export company baby accessories company', null, 1),
+ ('import export company baby care company', null, 1),
+ ('import export company baby clothing company', null, 1),
+ ('import export company baby products company', null, 1),
+ ('import export company bags company', null, 1),
+ ('import export company beauty company', null, 1),
+ ('import export company bedding company', null, 1),
+ ('import export company beverage company', null, 1),
+ ('import export company body care company', null, 1),
+ ('import export company camping gear company', null, 1),
+ ('import export company candy company', null, 1),
+ ('import export company car accessories company', null, 1),
+ ('import export company cat products company', null, 1),
+ ('import export company children''s products company', null, 1),
+ ('import export company chocolate company', null, 1),
+ ('import export company clothing company', null, 1),
+ ('import export company coffee company', null, 1),
+ ('import export company collectibles company', null, 1),
+ ('import export company computer accessories company', null, 1),
+ ('import export company consumer electronics company', null, 1),
+ ('import export company cookware company', null, 1),
+ ('import export company cosmetics company', null, 1),
+ ('import export company craft products company', null, 1),
+ ('import export company cycling products company', null, 1),
+ ('import export company dog products company', null, 1),
+ ('import export company educational toys company', null, 1),
+ ('import export company electronics accessories company', null, 1),
+ ('import export company fashion company', null, 1),
+ ('import export company fishing products company', null, 1),
+ ('import export company fitness equipment company', null, 1),
+ ('import export company fitness products company', null, 1),
+ ('import export company food company', null, 1),
+ ('import export company footwear company', null, 1),
+ ('import export company fragrance company', null, 1),
+ ('import export company furniture company', null, 1),
+ ('import export company gaming accessories company', null, 1),
+ ('import export company garden products company', null, 1),
+ ('import export company gifts company', null, 1),
+ ('import export company grooming company', null, 1),
+ ('import export company gym equipment company', null, 1),
+ ('import export company hair products company', null, 1),
+ ('import export company haircare company', null, 1),
+ ('import export company handbags company', null, 1),
+ ('import export company hardware company', null, 1),
+ ('import export company health food company', null, 1),
+ ('import export company health products company', null, 1),
+ ('import export company healthy food company', null, 1),
+ ('import export company hiking gear company', null, 1),
+ ('import export company hobby products company', null, 1),
+ ('import export company home decor company', null, 1),
+ ('import export company home goods company', null, 1),
+ ('import export company home organization company', null, 1),
+ ('import export company household products company', null, 1),
+ ('import export company jewelry company', null, 1),
+ ('import export company kids products company', null, 1),
+ ('import export company kitchen products company', null, 1),
+ ('import export company leather goods company', null, 1),
+ ('import export company lifestyle products company', null, 1),
+ ('import export company lighting company', null, 1),
+ ('import export company luxury goods company', null, 1),
+ ('import export company makeup company', null, 1),
+ ('import export company mattresses company', null, 1),
+ ('import export company meal kits company', null, 1),
+ ('import export company musical instruments company', null, 1),
+ ('import export company nutrition company', null, 1),
+ ('import export company nutritional products company', null, 1),
+ ('import export company office products company', null, 1),
+ ('import export company organic food company', null, 1),
+ ('import export company outdoor gear company', null, 1),
+ ('import export company packaged food company', null, 1),
+ ('import export company perfume company', null, 1),
+ ('import export company personal care company', null, 1),
+ ('import export company pet accessories company', null, 1),
+ ('import export company pet food company', null, 1),
+ ('import export company pet products company', null, 1),
+ ('import export company pet supplies company', null, 1),
+ ('import export company phone accessories company', null, 1),
+ ('import export company protein company', null, 1),
+ ('import export company running products company', null, 1),
+ ('import export company shoes company', null, 1),
+ ('import export company skincare company', null, 1),
+ ('import export company smart home products company', null, 1),
+ ('import export company snack company', null, 1),
+ ('import export company sneakers company', null, 1),
+ ('import export company specialty food company', null, 1),
+ ('import export company sporting goods company', null, 1),
+ ('import export company sports equipment company', null, 1),
+ ('import export company sports nutrition company', null, 1),
+ ('import export company sportswear company', null, 1),
+ ('import export company stationery company', null, 1),
+ ('import export company streetwear company', null, 1),
+ ('import export company supplements company', null, 1),
+ ('import export company tea company', null, 1),
+ ('import export company tools company', null, 1),
+ ('import export company toys company', null, 1),
+ ('import export company vitamins company', null, 1),
+ ('import export company watches company', null, 1),
+ ('import export company wearable technology company', null, 1),
+ ('import export company wellness company', null, 1),
+ ('importer accessories company', null, 1),
+ ('importer activewear company', null, 1),
+ ('importer animal products company', null, 1),
+ ('importer apparel company', null, 1),
+ ('importer audio products company', null, 1),
+ ('importer automotive accessories company', null, 1),
+ ('importer baby accessories company', null, 1),
+ ('importer baby care company', null, 1),
+ ('importer baby clothing company', null, 1),
+ ('importer baby products company', null, 1),
+ ('importer bags company', null, 1),
+ ('importer beauty company', null, 1),
+ ('importer bedding company', null, 1),
+ ('importer beverage company', null, 1),
+ ('importer body care company', null, 1),
+ ('importer camping gear company', null, 1),
+ ('importer candy company', null, 1),
+ ('importer car accessories company', null, 1),
+ ('importer cat products company', null, 1),
+ ('importer children''s products company', null, 1),
+ ('importer chocolate company', null, 1),
+ ('importer clothing company', null, 1),
+ ('importer coffee company', null, 1),
+ ('importer collectibles company', null, 1),
+ ('importer computer accessories company', null, 1),
+ ('importer consumer electronics company', null, 1),
+ ('importer cookware company', null, 1),
+ ('importer cosmetics company', null, 1),
+ ('importer craft products company', null, 1),
+ ('importer cycling products company', null, 1),
+ ('importer dog products company', null, 1),
+ ('importer educational toys company', null, 1),
+ ('importer electronics accessories company', null, 1),
+ ('importer exporter accessories company', null, 1),
+ ('importer exporter activewear company', null, 1),
+ ('importer exporter animal products company', null, 1),
+ ('importer exporter apparel company', null, 1),
+ ('importer exporter audio products company', null, 1),
+ ('importer exporter automotive accessories company', null, 1),
+ ('importer exporter baby accessories company', null, 1),
+ ('importer exporter baby care company', null, 1),
+ ('importer exporter baby clothing company', null, 1),
+ ('importer exporter baby products company', null, 1),
+ ('importer exporter bags company', null, 1),
+ ('importer exporter beauty company', null, 1),
+ ('importer exporter bedding company', null, 1),
+ ('importer exporter beverage company', null, 1),
+ ('importer exporter body care company', null, 1),
+ ('importer exporter camping gear company', null, 1),
+ ('importer exporter candy company', null, 1),
+ ('importer exporter car accessories company', null, 1),
+ ('importer exporter cat products company', null, 1),
+ ('importer exporter children''s products company', null, 1),
+ ('importer exporter chocolate company', null, 1),
+ ('importer exporter clothing company', null, 1),
+ ('importer exporter coffee company', null, 1),
+ ('importer exporter collectibles company', null, 1),
+ ('importer exporter computer accessories company', null, 1),
+ ('importer exporter consumer electronics company', null, 1),
+ ('importer exporter cookware company', null, 1),
+ ('importer exporter cosmetics company', null, 1),
+ ('importer exporter craft products company', null, 1),
+ ('importer exporter cycling products company', null, 1),
+ ('importer exporter dog products company', null, 1)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 1,201-1,600 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
+ ('importer exporter educational toys company', null, 1),
+ ('importer exporter electronics accessories company', null, 1),
+ ('importer exporter fashion company', null, 1),
+ ('importer exporter fishing products company', null, 1),
+ ('importer exporter fitness equipment company', null, 1),
+ ('importer exporter fitness products company', null, 1),
+ ('importer exporter food company', null, 1),
+ ('importer exporter footwear company', null, 1),
+ ('importer exporter fragrance company', null, 1),
+ ('importer exporter furniture company', null, 1),
+ ('importer exporter gaming accessories company', null, 1),
+ ('importer exporter garden products company', null, 1),
+ ('importer exporter gifts company', null, 1),
+ ('importer exporter grooming company', null, 1),
+ ('importer exporter gym equipment company', null, 1),
+ ('importer exporter hair products company', null, 1),
+ ('importer exporter haircare company', null, 1),
+ ('importer exporter handbags company', null, 1),
+ ('importer exporter hardware company', null, 1),
+ ('importer exporter health food company', null, 1),
+ ('importer exporter health products company', null, 1),
+ ('importer exporter healthy food company', null, 1),
+ ('importer exporter hiking gear company', null, 1),
+ ('importer exporter hobby products company', null, 1),
+ ('importer exporter home decor company', null, 1),
+ ('importer exporter home goods company', null, 1),
+ ('importer exporter home organization company', null, 1),
+ ('importer exporter household products company', null, 1),
+ ('importer exporter jewelry company', null, 1),
+ ('importer exporter kids products company', null, 1),
+ ('importer exporter kitchen products company', null, 1),
+ ('importer exporter leather goods company', null, 1),
+ ('importer exporter lifestyle products company', null, 1),
+ ('importer exporter lighting company', null, 1),
+ ('importer exporter luxury goods company', null, 1),
+ ('importer exporter makeup company', null, 1),
+ ('importer exporter mattresses company', null, 1),
+ ('importer exporter meal kits company', null, 1),
+ ('importer exporter musical instruments company', null, 1),
+ ('importer exporter nutrition company', null, 1),
+ ('importer exporter nutritional products company', null, 1),
+ ('importer exporter office products company', null, 1),
+ ('importer exporter organic food company', null, 1),
+ ('importer exporter outdoor gear company', null, 1),
+ ('importer exporter packaged food company', null, 1),
+ ('importer exporter perfume company', null, 1),
+ ('importer exporter personal care company', null, 1),
+ ('importer exporter pet accessories company', null, 1),
+ ('importer exporter pet food company', null, 1),
+ ('importer exporter pet products company', null, 1),
+ ('importer exporter pet supplies company', null, 1),
+ ('importer exporter phone accessories company', null, 1),
+ ('importer exporter protein company', null, 1),
+ ('importer exporter running products company', null, 1),
+ ('importer exporter shoes company', null, 1),
+ ('importer exporter skincare company', null, 1),
+ ('importer exporter smart home products company', null, 1),
+ ('importer exporter snack company', null, 1),
+ ('importer exporter sneakers company', null, 1),
+ ('importer exporter specialty food company', null, 1),
+ ('importer exporter sporting goods company', null, 1),
+ ('importer exporter sports equipment company', null, 1),
+ ('importer exporter sports nutrition company', null, 1),
+ ('importer exporter sportswear company', null, 1),
+ ('importer exporter stationery company', null, 1),
+ ('importer exporter streetwear company', null, 1),
+ ('importer exporter supplements company', null, 1),
+ ('importer exporter tea company', null, 1),
+ ('importer exporter tools company', null, 1),
+ ('importer exporter toys company', null, 1),
+ ('importer exporter vitamins company', null, 1),
+ ('importer exporter watches company', null, 1),
+ ('importer exporter wearable technology company', null, 1),
+ ('importer exporter wellness company', null, 1),
+ ('importer fashion company', null, 1),
+ ('importer fishing products company', null, 1),
+ ('importer fitness equipment company', null, 1),
+ ('importer fitness products company', null, 1),
+ ('importer food company', null, 1),
+ ('importer footwear company', null, 1),
+ ('importer fragrance company', null, 1),
+ ('importer furniture company', null, 1),
+ ('importer gaming accessories company', null, 1),
+ ('importer garden products company', null, 1),
+ ('importer gifts company', null, 1),
+ ('importer grooming company', null, 1),
+ ('importer gym equipment company', null, 1),
+ ('importer hair products company', null, 1),
+ ('importer haircare company', null, 1),
+ ('importer handbags company', null, 1),
+ ('importer hardware company', null, 1),
+ ('importer health food company', null, 1),
+ ('importer health products company', null, 1),
+ ('importer healthy food company', null, 1),
+ ('importer hiking gear company', null, 1),
+ ('importer hobby products company', null, 1),
+ ('importer home decor company', null, 1),
+ ('importer home goods company', null, 1),
+ ('importer home organization company', null, 1),
+ ('importer household products company', null, 1),
+ ('importer jewelry company', null, 1),
+ ('importer kids products company', null, 1),
+ ('importer kitchen products company', null, 1),
+ ('importer leather goods company', null, 1),
+ ('importer lifestyle products company', null, 1),
+ ('importer lighting company', null, 1),
+ ('importer luxury goods company', null, 1),
+ ('importer makeup company', null, 1),
+ ('importer mattresses company', null, 1),
+ ('importer meal kits company', null, 1),
+ ('importer musical instruments company', null, 1),
+ ('importer nutrition company', null, 1),
+ ('importer nutritional products company', null, 1),
+ ('importer office products company', null, 1),
+ ('importer organic food company', null, 1),
+ ('importer outdoor gear company', null, 1),
+ ('importer packaged food company', null, 1),
+ ('importer perfume company', null, 1),
+ ('importer personal care company', null, 1),
+ ('importer pet accessories company', null, 1),
+ ('importer pet food company', null, 1),
+ ('importer pet products company', null, 1),
+ ('importer pet supplies company', null, 1),
+ ('importer phone accessories company', null, 1),
+ ('importer protein company', null, 1),
+ ('importer running products company', null, 1),
+ ('importer shoes company', null, 1),
+ ('importer skincare company', null, 1),
+ ('importer smart home products company', null, 1),
+ ('importer snack company', null, 1),
+ ('importer sneakers company', null, 1),
+ ('importer specialty food company', null, 1),
+ ('importer sporting goods company', null, 1),
+ ('importer sports equipment company', null, 1),
+ ('importer sports nutrition company', null, 1),
+ ('importer sportswear company', null, 1),
+ ('importer stationery company', null, 1),
+ ('importer streetwear company', null, 1),
+ ('importer supplements company', null, 1),
+ ('importer tea company', null, 1),
+ ('importer tools company', null, 1),
+ ('importer toys company', null, 1),
+ ('importer vitamins company', null, 1),
+ ('importer watches company', null, 1),
+ ('importer wearable technology company', null, 1),
+ ('importer wellness company', null, 1),
+ ('jewelry import export company', null, 1),
+ ('jewelry importer', null, 1),
+ ('jewelry importer exporter', null, 1),
+ ('jewelry we import', null, 1),
+ ('kids products import export company', null, 1),
+ ('kids products importer', null, 1),
+ ('kids products importer exporter', null, 1),
+ ('kids products we import', null, 1),
+ ('kitchen products import export company', null, 1),
+ ('kitchen products importer', null, 1),
+ ('kitchen products importer exporter', null, 1),
+ ('kitchen products we import', null, 1),
+ ('leather goods import export company', null, 1),
+ ('leather goods importer', null, 1),
+ ('leather goods importer exporter', null, 1),
+ ('leather goods we import', null, 1),
+ ('lifestyle products import export company', null, 1),
+ ('lifestyle products importer', null, 1),
+ ('lifestyle products importer exporter', null, 1),
+ ('lifestyle products we import', null, 1),
+ ('lighting import export company', null, 1),
+ ('lighting importer', null, 1),
+ ('lighting importer exporter', null, 1),
+ ('lighting we import', null, 1),
+ ('luxury goods import export company', null, 1),
+ ('luxury goods importer', null, 1),
+ ('luxury goods importer exporter', null, 1),
+ ('luxury goods we import', null, 1),
+ ('makeup import export company', null, 1),
+ ('makeup importer', null, 1),
+ ('makeup importer exporter', null, 1),
+ ('makeup we import', null, 1),
+ ('mattresses import export company', null, 1),
+ ('mattresses importer', null, 1),
+ ('mattresses importer exporter', null, 1),
+ ('mattresses we import', null, 1),
+ ('meal kits import export company', null, 1),
+ ('meal kits importer', null, 1),
+ ('meal kits importer exporter', null, 1),
+ ('meal kits we import', null, 1),
+ ('musical instruments import export company', null, 1),
+ ('musical instruments importer', null, 1),
+ ('musical instruments importer exporter', null, 1),
+ ('musical instruments we import', null, 1),
+ ('nutrition import export company', null, 1),
+ ('nutrition importer', null, 1),
+ ('nutrition importer exporter', null, 1),
+ ('nutrition we import', null, 1),
+ ('nutritional products import export company', null, 1),
+ ('nutritional products importer', null, 1),
+ ('nutritional products importer exporter', null, 1),
+ ('nutritional products we import', null, 1),
+ ('office products import export company', null, 1),
+ ('office products importer', null, 1),
+ ('office products importer exporter', null, 1),
+ ('office products we import', null, 1),
+ ('organic food import export company', null, 1),
+ ('organic food importer', null, 1),
+ ('organic food importer exporter', null, 1),
+ ('organic food we import', null, 1),
+ ('outdoor gear import export company', null, 1),
+ ('outdoor gear importer', null, 1),
+ ('outdoor gear importer exporter', null, 1),
+ ('outdoor gear we import', null, 1),
+ ('packaged food import export company', null, 1),
+ ('packaged food importer', null, 1),
+ ('packaged food importer exporter', null, 1),
+ ('packaged food we import', null, 1),
+ ('perfume import export company', null, 1),
+ ('perfume importer', null, 1),
+ ('perfume importer exporter', null, 1),
+ ('perfume we import', null, 1),
+ ('personal care import export company', null, 1),
+ ('personal care importer', null, 1),
+ ('personal care importer exporter', null, 1),
+ ('personal care we import', null, 1),
+ ('pet accessories import export company', null, 1),
+ ('pet accessories importer', null, 1),
+ ('pet accessories importer exporter', null, 1),
+ ('pet accessories we import', null, 1),
+ ('pet food import export company', null, 1),
+ ('pet food importer', null, 1),
+ ('pet food importer exporter', null, 1),
+ ('pet food we import', null, 1),
+ ('pet products import export company', null, 1),
+ ('pet products importer', null, 1),
+ ('pet products importer exporter', null, 1),
+ ('pet products we import', null, 1),
+ ('pet supplies import export company', null, 1),
+ ('pet supplies importer', null, 1),
+ ('pet supplies importer exporter', null, 1),
+ ('pet supplies we import', null, 1),
+ ('phone accessories import export company', null, 1),
+ ('phone accessories importer', null, 1),
+ ('phone accessories importer exporter', null, 1),
+ ('phone accessories we import', null, 1),
+ ('protein import export company', null, 1),
+ ('protein importer', null, 1),
+ ('protein importer exporter', null, 1),
+ ('protein we import', null, 1),
+ ('running products import export company', null, 1),
+ ('running products importer', null, 1),
+ ('running products importer exporter', null, 1),
+ ('running products we import', null, 1),
+ ('shoes import export company', null, 1),
+ ('shoes importer', null, 1),
+ ('shoes importer exporter', null, 1),
+ ('shoes we import', null, 1),
+ ('skincare import export company', null, 1),
+ ('skincare importer', null, 1),
+ ('skincare importer exporter', null, 1),
+ ('skincare we import', null, 1),
+ ('smart home products import export company', null, 1),
+ ('smart home products importer', null, 1),
+ ('smart home products importer exporter', null, 1),
+ ('smart home products we import', null, 1),
+ ('snack import export company', null, 1),
+ ('snack importer', null, 1),
+ ('snack importer exporter', null, 1),
+ ('snack we import', null, 1),
+ ('sneakers import export company', null, 1),
+ ('sneakers importer', null, 1),
+ ('sneakers importer exporter', null, 1),
+ ('sneakers we import', null, 1),
+ ('specialty food import export company', null, 1),
+ ('specialty food importer', null, 1),
+ ('specialty food importer exporter', null, 1),
+ ('specialty food we import', null, 1),
+ ('sporting goods import export company', null, 1),
+ ('sporting goods importer', null, 1),
+ ('sporting goods importer exporter', null, 1),
+ ('sporting goods we import', null, 1),
+ ('sports equipment import export company', null, 1),
+ ('sports equipment importer', null, 1),
+ ('sports equipment importer exporter', null, 1),
+ ('sports equipment we import', null, 1),
+ ('sports nutrition import export company', null, 1),
+ ('sports nutrition importer', null, 1),
+ ('sports nutrition importer exporter', null, 1),
+ ('sports nutrition we import', null, 1),
+ ('sportswear import export company', null, 1),
+ ('sportswear importer', null, 1),
+ ('sportswear importer exporter', null, 1),
+ ('sportswear we import', null, 1),
+ ('stationery import export company', null, 1),
+ ('stationery importer', null, 1),
+ ('stationery importer exporter', null, 1),
+ ('stationery we import', null, 1),
+ ('streetwear import export company', null, 1),
+ ('streetwear importer', null, 1),
+ ('streetwear importer exporter', null, 1),
+ ('streetwear we import', null, 1),
+ ('supplements import export company', null, 1),
+ ('supplements importer', null, 1),
+ ('supplements importer exporter', null, 1),
+ ('supplements we import', null, 1),
+ ('tea import export company', null, 1),
+ ('tea importer', null, 1),
+ ('tea importer exporter', null, 1),
+ ('tea we import', null, 1),
+ ('tools import export company', null, 1),
+ ('tools importer', null, 1),
+ ('tools importer exporter', null, 1),
+ ('tools we import', null, 1),
+ ('toys import export company', null, 1),
+ ('toys importer', null, 1),
+ ('toys importer exporter', null, 1),
+ ('toys we import', null, 1),
+ ('vitamins import export company', null, 1),
+ ('vitamins importer', null, 1),
+ ('vitamins importer exporter', null, 1),
+ ('vitamins we import', null, 1),
+ ('watches import export company', null, 1),
+ ('watches importer', null, 1),
+ ('watches importer exporter', null, 1),
+ ('watches we import', null, 1),
+ ('we import accessories company', null, 1),
+ ('we import activewear company', null, 1),
+ ('we import animal products company', null, 1),
+ ('we import apparel company', null, 1),
+ ('we import audio products company', null, 1),
+ ('we import automotive accessories company', null, 1),
+ ('we import baby accessories company', null, 1),
+ ('we import baby care company', null, 1),
+ ('we import baby clothing company', null, 1),
+ ('we import baby products company', null, 1),
+ ('we import bags company', null, 1),
+ ('we import beauty company', null, 1),
+ ('we import bedding company', null, 1),
+ ('we import beverage company', null, 1),
+ ('we import body care company', null, 1),
+ ('we import camping gear company', null, 1),
+ ('we import candy company', null, 1),
+ ('we import car accessories company', null, 1),
+ ('we import cat products company', null, 1),
+ ('we import children''s products company', null, 1),
+ ('we import chocolate company', null, 1),
+ ('we import clothing company', null, 1),
+ ('we import coffee company', null, 1),
+ ('we import collectibles company', null, 1),
+ ('we import computer accessories company', null, 1),
+ ('we import consumer electronics company', null, 1),
+ ('we import cookware company', null, 1),
+ ('we import cosmetics company', null, 1),
+ ('we import craft products company', null, 1),
+ ('we import cycling products company', null, 1),
+ ('we import dog products company', null, 1),
+ ('we import educational toys company', null, 1),
+ ('we import electronics accessories company', null, 1),
+ ('we import fashion company', null, 1),
+ ('we import fishing products company', null, 1),
+ ('we import fitness equipment company', null, 1),
+ ('we import fitness products company', null, 1),
+ ('we import food company', null, 1),
+ ('we import footwear company', null, 1),
+ ('we import fragrance company', null, 1),
+ ('we import furniture company', null, 1),
+ ('we import gaming accessories company', null, 1),
+ ('we import garden products company', null, 1),
+ ('we import gifts company', null, 1),
+ ('we import grooming company', null, 1),
+ ('we import gym equipment company', null, 1),
+ ('we import hair products company', null, 1),
+ ('we import haircare company', null, 1),
+ ('we import handbags company', null, 1),
+ ('we import hardware company', null, 1),
+ ('we import health food company', null, 1),
+ ('we import health products company', null, 1),
+ ('we import healthy food company', null, 1),
+ ('we import hiking gear company', null, 1),
+ ('we import hobby products company', null, 1),
+ ('we import home decor company', null, 1),
+ ('we import home goods company', null, 1),
+ ('we import home organization company', null, 1),
+ ('we import household products company', null, 1),
+ ('we import jewelry company', null, 1),
+ ('we import kids products company', null, 1),
+ ('we import kitchen products company', null, 1),
+ ('we import leather goods company', null, 1),
+ ('we import lifestyle products company', null, 1),
+ ('we import lighting company', null, 1),
+ ('we import luxury goods company', null, 1),
+ ('we import makeup company', null, 1),
+ ('we import mattresses company', null, 1),
+ ('we import meal kits company', null, 1),
+ ('we import musical instruments company', null, 1),
+ ('we import nutrition company', null, 1),
+ ('we import nutritional products company', null, 1),
+ ('we import office products company', null, 1),
+ ('we import organic food company', null, 1),
+ ('we import outdoor gear company', null, 1),
+ ('we import packaged food company', null, 1),
+ ('we import perfume company', null, 1),
+ ('we import personal care company', null, 1)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 1,601-2,000 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
+ ('we import pet accessories company', null, 1),
+ ('we import pet food company', null, 1),
+ ('we import pet products company', null, 1),
+ ('we import pet supplies company', null, 1),
+ ('we import phone accessories company', null, 1),
+ ('we import protein company', null, 1),
+ ('we import running products company', null, 1),
+ ('we import shoes company', null, 1),
+ ('we import skincare company', null, 1),
+ ('we import smart home products company', null, 1),
+ ('we import snack company', null, 1),
+ ('we import sneakers company', null, 1),
+ ('we import specialty food company', null, 1),
+ ('we import sporting goods company', null, 1),
+ ('we import sports equipment company', null, 1),
+ ('we import sports nutrition company', null, 1),
+ ('we import sportswear company', null, 1),
+ ('we import stationery company', null, 1),
+ ('we import streetwear company', null, 1),
+ ('we import supplements company', null, 1),
+ ('we import tea company', null, 1),
+ ('we import tools company', null, 1),
+ ('we import toys company', null, 1),
+ ('we import vitamins company', null, 1),
+ ('we import watches company', null, 1),
+ ('we import wearable technology company', null, 1),
+ ('we import wellness company', null, 1),
+ ('wearable technology import export company', null, 1),
+ ('wearable technology importer', null, 1),
+ ('wearable technology importer exporter', null, 1),
+ ('wearable technology we import', null, 1),
+ ('wellness import export company', null, 1),
+ ('wellness importer', null, 1),
+ ('wellness importer exporter', null, 1),
+ ('wellness we import', null, 1),
+ ('OEM manufacturer', null, 1),
+ ('OEM manufacturer ecommerce', null, 1),
+ ('artisan manufacturer', null, 1),
+ ('artisan manufacturer ecommerce', null, 1),
+ ('contract manufacturer', null, 1),
+ ('contract manufacturer ecommerce', null, 1),
+ ('made in UK brand', null, 1),
+ ('made in UK brand ecommerce', null, 1),
+ ('made in USA brand', null, 1),
+ ('made in USA brand ecommerce', null, 1),
+ ('private label manufacturer', null, 1),
+ ('private label manufacturer ecommerce', null, 1),
+ ('product manufacturer', null, 1),
+ ('product manufacturer ecommerce', null, 1),
+ ('small batch manufacturer', null, 1),
+ ('small batch manufacturer ecommerce', null, 1),
+ ('we manufacture', null, 1),
+ ('we manufacture ecommerce', null, 1),
+ ('white label brand', null, 1),
+ ('white label brand ecommerce', null, 1),
+ ('Amazon FBA fees too high', null, 1),
+ ('Amazon seller switching fulfillment', null, 1),
+ ('FBA alternatives', null, 1),
+ ('fulfillment partner', null, 1),
+ ('leaving Amazon FBA', null, 1),
+ ('move from FBA to 3PL', null, 1),
+ ('multi-channel fulfillment', null, 1),
+ ('outsource fulfillment', null, 1),
+ ('own fulfillment center', null, 1),
+ ('Amazon FBA seller', null, 1),
+ ('Amazon FBA seller ecommerce brand', null, 1),
+ ('Amazon brand', null, 1),
+ ('Amazon brand ecommerce brand', null, 1),
+ ('Amazon private label brand', null, 1),
+ ('Amazon private label brand ecommerce brand', null, 1),
+ ('Amazon seller', null, 1),
+ ('Amazon seller ecommerce brand', null, 1),
+ ('Etsy shop', null, 1),
+ ('Etsy shop ecommerce brand', null, 1),
+ ('FBA brand', null, 1),
+ ('FBA brand ecommerce brand', null, 1),
+ ('TikTok shop brand', null, 1),
+ ('TikTok shop brand ecommerce brand', null, 1),
+ ('eBay seller brand', null, 1),
+ ('eBay seller brand ecommerce brand', null, 1),
+ ('marketplace brand', null, 1),
+ ('marketplace brand ecommerce brand', null, 1),
+ ('multi-channel seller', null, 1),
+ ('multi-channel seller ecommerce brand', null, 1),
  ('DTC automotive accessories brands', null, 1),
  ('DTC car accessories brands', null, 1),
  ('DTC collectibles brands', null, 1),
@@ -685,6 +1961,377 @@ from services s,
  ('sports equipment direct to consumer brands', null, 1),
  ('sports equipment ecommerce brands', null, 1),
  ('sports equipment online stores', null, 1),
+ ('best curated subscription box brands', null, 1),
+ ('best monthly box brands', null, 1),
+ ('best niche subscription box brands', null, 1),
+ ('best subscription beauty box brands', null, 1),
+ ('best subscription book box brands', null, 1),
+ ('best subscription box brands', null, 1),
+ ('best subscription coffee brands', null, 1),
+ ('best subscription kit brands', null, 1),
+ ('best subscription meal kit brands', null, 1),
+ ('best subscription pet box brands', null, 1),
+ ('best subscription snack box brands', null, 1),
+ ('best subscription toy box brands', null, 1),
+ ('best subscription wellness box brands', null, 1),
+ ('best subscription wine club brands', null, 1),
+ ('curated subscription box', null, 1),
+ ('monthly box', null, 1),
+ ('niche subscription box', null, 1),
+ ('subscription beauty box', null, 1),
+ ('subscription book box', null, 1),
+ ('subscription box', null, 1),
+ ('subscription coffee', null, 1),
+ ('subscription kit', null, 1),
+ ('subscription meal kit', null, 1),
+ ('subscription pet box', null, 1),
+ ('subscription snack box', null, 1),
+ ('subscription toy box', null, 1),
+ ('subscription wellness box', null, 1),
+ ('subscription wine club', null, 1),
+ ('top curated subscription box companies', null, 1),
+ ('top monthly box companies', null, 1),
+ ('top niche subscription box companies', null, 1),
+ ('top subscription beauty box companies', null, 1),
+ ('top subscription book box companies', null, 1),
+ ('top subscription box companies', null, 1),
+ ('top subscription coffee companies', null, 1),
+ ('top subscription kit companies', null, 1),
+ ('top subscription meal kit companies', null, 1),
+ ('top subscription pet box companies', null, 1),
+ ('top subscription snack box companies', null, 1),
+ ('top subscription toy box companies', null, 1),
+ ('top subscription wellness box companies', null, 1),
+ ('top subscription wine club companies', null, 1),
+ ('accessories wholesale brand', null, 1),
+ ('accessories wholesale company', null, 1),
+ ('accessories wholesaler', null, 1),
+ ('activewear wholesale brand', null, 1),
+ ('activewear wholesale company', null, 1),
+ ('activewear wholesaler', null, 1),
+ ('animal products wholesale brand', null, 1),
+ ('animal products wholesale company', null, 1),
+ ('animal products wholesaler', null, 1),
+ ('apparel wholesale brand', null, 1),
+ ('apparel wholesale company', null, 1),
+ ('apparel wholesaler', null, 1),
+ ('audio products wholesale brand', null, 1),
+ ('audio products wholesale company', null, 1),
+ ('audio products wholesaler', null, 1),
+ ('automotive accessories wholesale brand', null, 1),
+ ('automotive accessories wholesale company', null, 1),
+ ('automotive accessories wholesaler', null, 1),
+ ('baby accessories wholesale brand', null, 1),
+ ('baby accessories wholesale company', null, 1),
+ ('baby accessories wholesaler', null, 1),
+ ('baby care wholesale brand', null, 1),
+ ('baby care wholesale company', null, 1),
+ ('baby care wholesaler', null, 1),
+ ('baby clothing wholesale brand', null, 1),
+ ('baby clothing wholesale company', null, 1),
+ ('baby clothing wholesaler', null, 1),
+ ('baby products wholesale brand', null, 1),
+ ('baby products wholesale company', null, 1),
+ ('baby products wholesaler', null, 1),
+ ('bags wholesale brand', null, 1),
+ ('bags wholesale company', null, 1),
+ ('bags wholesaler', null, 1),
+ ('beauty wholesale brand', null, 1),
+ ('beauty wholesale company', null, 1),
+ ('beauty wholesaler', null, 1),
+ ('bedding wholesale brand', null, 1),
+ ('bedding wholesale company', null, 1),
+ ('bedding wholesaler', null, 1),
+ ('beverage wholesale brand', null, 1),
+ ('beverage wholesale company', null, 1),
+ ('beverage wholesaler', null, 1),
+ ('body care wholesale brand', null, 1),
+ ('body care wholesale company', null, 1),
+ ('body care wholesaler', null, 1),
+ ('camping gear wholesale brand', null, 1),
+ ('camping gear wholesale company', null, 1),
+ ('camping gear wholesaler', null, 1),
+ ('candy wholesale brand', null, 1),
+ ('candy wholesale company', null, 1),
+ ('candy wholesaler', null, 1),
+ ('car accessories wholesale brand', null, 1),
+ ('car accessories wholesale company', null, 1),
+ ('car accessories wholesaler', null, 1),
+ ('cat products wholesale brand', null, 1),
+ ('cat products wholesale company', null, 1),
+ ('cat products wholesaler', null, 1),
+ ('children''s products wholesale brand', null, 1),
+ ('children''s products wholesale company', null, 1),
+ ('children''s products wholesaler', null, 1),
+ ('chocolate wholesale brand', null, 1),
+ ('chocolate wholesale company', null, 1),
+ ('chocolate wholesaler', null, 1),
+ ('clothing wholesale brand', null, 1),
+ ('clothing wholesale company', null, 1),
+ ('clothing wholesaler', null, 1),
+ ('coffee wholesale brand', null, 1),
+ ('coffee wholesale company', null, 1),
+ ('coffee wholesaler', null, 1),
+ ('collectibles wholesale brand', null, 1),
+ ('collectibles wholesale company', null, 1),
+ ('collectibles wholesaler', null, 1),
+ ('computer accessories wholesale brand', null, 1),
+ ('computer accessories wholesale company', null, 1),
+ ('computer accessories wholesaler', null, 1),
+ ('consumer electronics wholesale brand', null, 1),
+ ('consumer electronics wholesale company', null, 1),
+ ('consumer electronics wholesaler', null, 1),
+ ('cookware wholesale brand', null, 1),
+ ('cookware wholesale company', null, 1),
+ ('cookware wholesaler', null, 1),
+ ('cosmetics wholesale brand', null, 1),
+ ('cosmetics wholesale company', null, 1),
+ ('cosmetics wholesaler', null, 1),
+ ('craft products wholesale brand', null, 1),
+ ('craft products wholesale company', null, 1),
+ ('craft products wholesaler', null, 1),
+ ('cycling products wholesale brand', null, 1),
+ ('cycling products wholesale company', null, 1),
+ ('cycling products wholesaler', null, 1),
+ ('dog products wholesale brand', null, 1),
+ ('dog products wholesale company', null, 1),
+ ('dog products wholesaler', null, 1),
+ ('educational toys wholesale brand', null, 1)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 2,001-2,400 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
+ ('educational toys wholesale company', null, 1),
+ ('educational toys wholesaler', null, 1),
+ ('electronics accessories wholesale brand', null, 1),
+ ('electronics accessories wholesale company', null, 1),
+ ('electronics accessories wholesaler', null, 1),
+ ('fashion wholesale brand', null, 1),
+ ('fashion wholesale company', null, 1),
+ ('fashion wholesaler', null, 1),
+ ('fishing products wholesale brand', null, 1),
+ ('fishing products wholesale company', null, 1),
+ ('fishing products wholesaler', null, 1),
+ ('fitness equipment wholesale brand', null, 1),
+ ('fitness equipment wholesale company', null, 1),
+ ('fitness equipment wholesaler', null, 1),
+ ('fitness products wholesale brand', null, 1),
+ ('fitness products wholesale company', null, 1),
+ ('fitness products wholesaler', null, 1),
+ ('food wholesale brand', null, 1),
+ ('food wholesale company', null, 1),
+ ('food wholesaler', null, 1),
+ ('footwear wholesale brand', null, 1),
+ ('footwear wholesale company', null, 1),
+ ('footwear wholesaler', null, 1),
+ ('fragrance wholesale brand', null, 1),
+ ('fragrance wholesale company', null, 1),
+ ('fragrance wholesaler', null, 1),
+ ('furniture wholesale brand', null, 1),
+ ('furniture wholesale company', null, 1),
+ ('furniture wholesaler', null, 1),
+ ('gaming accessories wholesale brand', null, 1),
+ ('gaming accessories wholesale company', null, 1),
+ ('gaming accessories wholesaler', null, 1),
+ ('garden products wholesale brand', null, 1),
+ ('garden products wholesale company', null, 1),
+ ('garden products wholesaler', null, 1),
+ ('gifts wholesale brand', null, 1),
+ ('gifts wholesale company', null, 1),
+ ('gifts wholesaler', null, 1),
+ ('grooming wholesale brand', null, 1),
+ ('grooming wholesale company', null, 1),
+ ('grooming wholesaler', null, 1),
+ ('gym equipment wholesale brand', null, 1),
+ ('gym equipment wholesale company', null, 1),
+ ('gym equipment wholesaler', null, 1),
+ ('hair products wholesale brand', null, 1),
+ ('hair products wholesale company', null, 1),
+ ('hair products wholesaler', null, 1),
+ ('haircare wholesale brand', null, 1),
+ ('haircare wholesale company', null, 1),
+ ('haircare wholesaler', null, 1),
+ ('handbags wholesale brand', null, 1),
+ ('handbags wholesale company', null, 1),
+ ('handbags wholesaler', null, 1),
+ ('hardware wholesale brand', null, 1),
+ ('hardware wholesale company', null, 1),
+ ('hardware wholesaler', null, 1),
+ ('health food wholesale brand', null, 1),
+ ('health food wholesale company', null, 1),
+ ('health food wholesaler', null, 1),
+ ('health products wholesale brand', null, 1),
+ ('health products wholesale company', null, 1),
+ ('health products wholesaler', null, 1),
+ ('healthy food wholesale brand', null, 1),
+ ('healthy food wholesale company', null, 1),
+ ('healthy food wholesaler', null, 1),
+ ('hiking gear wholesale brand', null, 1),
+ ('hiking gear wholesale company', null, 1),
+ ('hiking gear wholesaler', null, 1),
+ ('hobby products wholesale brand', null, 1),
+ ('hobby products wholesale company', null, 1),
+ ('hobby products wholesaler', null, 1),
+ ('home decor wholesale brand', null, 1),
+ ('home decor wholesale company', null, 1),
+ ('home decor wholesaler', null, 1),
+ ('home goods wholesale brand', null, 1),
+ ('home goods wholesale company', null, 1),
+ ('home goods wholesaler', null, 1),
+ ('home organization wholesale brand', null, 1),
+ ('home organization wholesale company', null, 1),
+ ('home organization wholesaler', null, 1),
+ ('household products wholesale brand', null, 1),
+ ('household products wholesale company', null, 1),
+ ('household products wholesaler', null, 1),
+ ('jewelry wholesale brand', null, 1),
+ ('jewelry wholesale company', null, 1),
+ ('jewelry wholesaler', null, 1),
+ ('kids products wholesale brand', null, 1),
+ ('kids products wholesale company', null, 1),
+ ('kids products wholesaler', null, 1),
+ ('kitchen products wholesale brand', null, 1),
+ ('kitchen products wholesale company', null, 1),
+ ('kitchen products wholesaler', null, 1),
+ ('leather goods wholesale brand', null, 1),
+ ('leather goods wholesale company', null, 1),
+ ('leather goods wholesaler', null, 1),
+ ('lifestyle products wholesale brand', null, 1),
+ ('lifestyle products wholesale company', null, 1),
+ ('lifestyle products wholesaler', null, 1),
+ ('lighting wholesale brand', null, 1),
+ ('lighting wholesale company', null, 1),
+ ('lighting wholesaler', null, 1),
+ ('luxury goods wholesale brand', null, 1),
+ ('luxury goods wholesale company', null, 1),
+ ('luxury goods wholesaler', null, 1),
+ ('makeup wholesale brand', null, 1),
+ ('makeup wholesale company', null, 1),
+ ('makeup wholesaler', null, 1),
+ ('mattresses wholesale brand', null, 1),
+ ('mattresses wholesale company', null, 1),
+ ('mattresses wholesaler', null, 1),
+ ('meal kits wholesale brand', null, 1),
+ ('meal kits wholesale company', null, 1),
+ ('meal kits wholesaler', null, 1),
+ ('musical instruments wholesale brand', null, 1),
+ ('musical instruments wholesale company', null, 1),
+ ('musical instruments wholesaler', null, 1),
+ ('nutrition wholesale brand', null, 1),
+ ('nutrition wholesale company', null, 1),
+ ('nutrition wholesaler', null, 1),
+ ('nutritional products wholesale brand', null, 1),
+ ('nutritional products wholesale company', null, 1),
+ ('nutritional products wholesaler', null, 1),
+ ('office products wholesale brand', null, 1),
+ ('office products wholesale company', null, 1),
+ ('office products wholesaler', null, 1),
+ ('organic food wholesale brand', null, 1),
+ ('organic food wholesale company', null, 1),
+ ('organic food wholesaler', null, 1),
+ ('outdoor gear wholesale brand', null, 1),
+ ('outdoor gear wholesale company', null, 1),
+ ('outdoor gear wholesaler', null, 1),
+ ('packaged food wholesale brand', null, 1),
+ ('packaged food wholesale company', null, 1),
+ ('packaged food wholesaler', null, 1),
+ ('perfume wholesale brand', null, 1),
+ ('perfume wholesale company', null, 1),
+ ('perfume wholesaler', null, 1),
+ ('personal care wholesale brand', null, 1),
+ ('personal care wholesale company', null, 1),
+ ('personal care wholesaler', null, 1),
+ ('pet accessories wholesale brand', null, 1),
+ ('pet accessories wholesale company', null, 1),
+ ('pet accessories wholesaler', null, 1),
+ ('pet food wholesale brand', null, 1),
+ ('pet food wholesale company', null, 1),
+ ('pet food wholesaler', null, 1),
+ ('pet products wholesale brand', null, 1),
+ ('pet products wholesale company', null, 1),
+ ('pet products wholesaler', null, 1),
+ ('pet supplies wholesale brand', null, 1),
+ ('pet supplies wholesale company', null, 1),
+ ('pet supplies wholesaler', null, 1),
+ ('phone accessories wholesale brand', null, 1),
+ ('phone accessories wholesale company', null, 1),
+ ('phone accessories wholesaler', null, 1),
+ ('protein wholesale brand', null, 1),
+ ('protein wholesale company', null, 1),
+ ('protein wholesaler', null, 1),
+ ('running products wholesale brand', null, 1),
+ ('running products wholesale company', null, 1),
+ ('running products wholesaler', null, 1),
+ ('shoes wholesale brand', null, 1),
+ ('shoes wholesale company', null, 1),
+ ('shoes wholesaler', null, 1),
+ ('skincare wholesale brand', null, 1),
+ ('skincare wholesale company', null, 1),
+ ('skincare wholesaler', null, 1),
+ ('smart home products wholesale brand', null, 1),
+ ('smart home products wholesale company', null, 1),
+ ('smart home products wholesaler', null, 1),
+ ('snack wholesale brand', null, 1),
+ ('snack wholesale company', null, 1),
+ ('snack wholesaler', null, 1),
+ ('sneakers wholesale brand', null, 1),
+ ('sneakers wholesale company', null, 1),
+ ('sneakers wholesaler', null, 1),
+ ('specialty food wholesale brand', null, 1),
+ ('specialty food wholesale company', null, 1),
+ ('specialty food wholesaler', null, 1),
+ ('sporting goods wholesale brand', null, 1),
+ ('sporting goods wholesale company', null, 1),
+ ('sporting goods wholesaler', null, 1),
+ ('sports equipment wholesale brand', null, 1),
+ ('sports equipment wholesale company', null, 1),
+ ('sports equipment wholesaler', null, 1),
+ ('sports nutrition wholesale brand', null, 1),
+ ('sports nutrition wholesale company', null, 1),
+ ('sports nutrition wholesaler', null, 1),
+ ('sportswear wholesale brand', null, 1),
+ ('sportswear wholesale company', null, 1),
+ ('sportswear wholesaler', null, 1),
+ ('stationery wholesale brand', null, 1),
+ ('stationery wholesale company', null, 1),
+ ('stationery wholesaler', null, 1),
+ ('streetwear wholesale brand', null, 1),
+ ('streetwear wholesale company', null, 1),
+ ('streetwear wholesaler', null, 1),
+ ('supplements wholesale brand', null, 1),
+ ('supplements wholesale company', null, 1),
+ ('supplements wholesaler', null, 1),
+ ('tea wholesale brand', null, 1),
+ ('tea wholesale company', null, 1),
+ ('tea wholesaler', null, 1),
+ ('tools wholesale brand', null, 1),
+ ('tools wholesale company', null, 1),
+ ('tools wholesaler', null, 1),
+ ('toys wholesale brand', null, 1),
+ ('toys wholesale company', null, 1),
+ ('toys wholesaler', null, 1),
+ ('vitamins wholesale brand', null, 1),
+ ('vitamins wholesale company', null, 1),
+ ('vitamins wholesaler', null, 1),
+ ('watches wholesale brand', null, 1),
+ ('watches wholesale company', null, 1),
+ ('watches wholesaler', null, 1),
+ ('wearable technology wholesale brand', null, 1),
+ ('wearable technology wholesale company', null, 1),
+ ('wearable technology wholesaler', null, 1),
+ ('wellness wholesale brand', null, 1),
+ ('wellness wholesale company', null, 1),
+ ('wellness wholesaler', null, 1),
  ('DTC baby accessories', null, 2),
  ('DTC baby accessories companies', null, 2),
  ('DTC baby accessories startups', null, 2),
@@ -854,21 +2501,7 @@ from services s,
  ('online children''s products companies', null, 2),
  ('online children''s products startups', null, 2),
  ('online educational toys', null, 2),
- ('online educational toys brands', null, 2)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 801-1,200 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('online educational toys brands', null, 2),
  ('online educational toys companies', null, 2),
  ('online educational toys startups', null, 2),
  ('online kids products', null, 2),
@@ -877,7 +2510,21 @@ from services s,
  ('online kids products startups', null, 2),
  ('online toys', null, 2),
  ('online toys brands', null, 2),
- ('online toys companies', null, 2),
+ ('online toys companies', null, 2)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 2,401-2,800 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('online toys startups', null, 2),
  ('subscription baby accessories', null, 2),
  ('subscription baby accessories brands', null, 2),
@@ -1268,21 +2915,7 @@ from services s,
  ('consumer gaming accessories brands', null, 2),
  ('consumer gaming accessories companies', null, 2),
  ('consumer gaming accessories startups', null, 2),
- ('consumer phone accessories', null, 2)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 1,201-1,600 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('consumer phone accessories', null, 2),
  ('consumer phone accessories brands', null, 2),
  ('consumer phone accessories companies', null, 2),
  ('consumer phone accessories startups', null, 2),
@@ -1291,7 +2924,21 @@ from services s,
  ('consumer smart home products companies', null, 2),
  ('consumer smart home products startups', null, 2),
  ('consumer wearable technology', null, 2),
- ('consumer wearable technology brands', null, 2),
+ ('consumer wearable technology brands', null, 2)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 2,801-3,200 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('consumer wearable technology companies', null, 2),
  ('consumer wearable technology startups', null, 2),
  ('direct to consumer audio products', null, 2),
@@ -1682,21 +3329,7 @@ from services s,
  ('ecommerce streetwear', null, 2),
  ('ecommerce streetwear brands', null, 2),
  ('ecommerce streetwear companies', null, 2),
- ('ecommerce streetwear startups', null, 2)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 1,601-2,000 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('ecommerce streetwear startups', null, 2),
  ('ecommerce watches', null, 2),
  ('ecommerce watches brands', null, 2),
  ('ecommerce watches companies', null, 2),
@@ -1705,7 +3338,21 @@ from services s,
  ('fashion ecommerce companies', null, 2),
  ('fashion online retailers', null, 2),
  ('fashion product companies', null, 2),
- ('footwear consumer brands', null, 2),
+ ('footwear consumer brands', null, 2)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 3,201-3,600 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('footwear ecommerce companies', null, 2),
  ('footwear online retailers', null, 2),
  ('footwear product companies', null, 2),
@@ -2096,21 +3743,7 @@ from services s,
  ('online meal kits', null, 2),
  ('online meal kits brands', null, 2),
  ('online meal kits companies', null, 2),
- ('online meal kits startups', null, 2)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 2,001-2,400 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('online meal kits startups', null, 2),
  ('online organic food', null, 2),
  ('online organic food brands', null, 2),
  ('online organic food companies', null, 2),
@@ -2119,7 +3752,21 @@ from services s,
  ('online packaged food brands', null, 2),
  ('online packaged food companies', null, 2),
  ('online packaged food startups', null, 2),
- ('online snack', null, 2),
+ ('online snack', null, 2)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 3,601-4,000 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('online snack brands', null, 2),
  ('online snack companies', null, 2),
  ('online snack startups', null, 2),
@@ -2159,7 +3806,6 @@ from services s,
  ('subscription chocolate brands', null, 2),
  ('subscription chocolate companies', null, 2),
  ('subscription chocolate startups', null, 2),
- ('subscription coffee', null, 2),
  ('subscription coffee brands', null, 2),
  ('subscription coffee companies', null, 2),
  ('subscription coffee startups', null, 2),
@@ -2510,21 +4156,7 @@ from services s,
  ('consumer bedding brands', null, 2),
  ('consumer bedding companies', null, 2),
  ('consumer bedding startups', null, 2),
- ('consumer cookware', null, 2)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 2,401-2,800 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('consumer cookware', null, 2),
  ('consumer cookware brands', null, 2),
  ('consumer cookware companies', null, 2),
  ('consumer cookware startups', null, 2),
@@ -2534,7 +4166,21 @@ from services s,
  ('consumer furniture startups', null, 2),
  ('consumer garden products', null, 2),
  ('consumer garden products brands', null, 2),
- ('consumer garden products companies', null, 2),
+ ('consumer garden products companies', null, 2)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 4,001-4,400 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('consumer garden products startups', null, 2),
  ('consumer home decor', null, 2),
  ('consumer home decor brands', null, 2),
@@ -2924,21 +4570,7 @@ from services s,
  ('direct to consumer luxury goods companies', null, 2),
  ('direct to consumer luxury goods startups', null, 2),
  ('direct to consumer musical instruments', null, 2),
- ('direct to consumer musical instruments brands', null, 2)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 2,801-3,200 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('direct to consumer musical instruments brands', null, 2),
  ('direct to consumer musical instruments companies', null, 2),
  ('direct to consumer musical instruments startups', null, 2),
  ('direct to consumer office products', null, 2),
@@ -2948,7 +4580,21 @@ from services s,
  ('direct to consumer stationery', null, 2),
  ('direct to consumer stationery brands', null, 2),
  ('direct to consumer stationery companies', null, 2),
- ('direct to consumer stationery startups', null, 2),
+ ('direct to consumer stationery startups', null, 2)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 4,401-4,800 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('direct to consumer tools', null, 2),
  ('direct to consumer tools brands', null, 2),
  ('direct to consumer tools companies', null, 2),
@@ -3338,21 +4984,7 @@ from services s,
  ('DTC camping gear companies', null, 2),
  ('DTC camping gear startups', null, 2),
  ('DTC cycling products', null, 2),
- ('DTC cycling products companies', null, 2)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 3,201-3,600 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('DTC cycling products companies', null, 2),
  ('DTC cycling products startups', null, 2),
  ('DTC fishing products', null, 2),
  ('DTC fishing products companies', null, 2),
@@ -3362,7 +4994,21 @@ from services s,
  ('DTC fitness equipment startups', null, 2),
  ('DTC gym equipment', null, 2),
  ('DTC gym equipment companies', null, 2),
- ('DTC gym equipment startups', null, 2),
+ ('DTC gym equipment startups', null, 2)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 4,801-5,200 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('DTC hiking gear', null, 2),
  ('DTC hiking gear companies', null, 2),
  ('DTC hiking gear startups', null, 2),
@@ -3752,21 +5398,7 @@ from services s,
  ('product manufacturer kids products', null, 3),
  ('product manufacturer toys', null, 3),
  ('successful baby accessories Shopify stores', null, 3),
- ('successful baby care Shopify stores', null, 3)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 3,601-4,000 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('successful baby care Shopify stores', null, 3),
  ('successful baby clothing Shopify stores', null, 3),
  ('successful baby products Shopify stores', null, 3),
  ('successful children''s products Shopify stores', null, 3),
@@ -3776,7 +5408,21 @@ from services s,
  ('top baby accessories DTC brands', null, 3),
  ('top baby accessories ecommerce brands', null, 3),
  ('top baby care DTC brands', null, 3),
- ('top baby care ecommerce brands', null, 3),
+ ('top baby care ecommerce brands', null, 3)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 5,201-5,600 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('top baby clothing DTC brands', null, 3),
  ('top baby clothing ecommerce brands', null, 3),
  ('top baby products DTC brands', null, 3),
@@ -4166,21 +5812,7 @@ from services s,
  ('product manufacturer electronics accessories', null, 3),
  ('product manufacturer gaming accessories', null, 3),
  ('product manufacturer phone accessories', null, 3),
- ('product manufacturer smart home products', null, 3)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 4,001-4,400 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('product manufacturer smart home products', null, 3),
  ('product manufacturer wearable technology', null, 3),
  ('smart home products brands directory', null, 3),
  ('smart home products consumer brands directory', null, 3),
@@ -4190,7 +5822,21 @@ from services s,
  ('successful consumer electronics Shopify stores', null, 3),
  ('successful electronics accessories Shopify stores', null, 3),
  ('successful gaming accessories Shopify stores', null, 3),
- ('successful phone accessories Shopify stores', null, 3),
+ ('successful phone accessories Shopify stores', null, 3)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 5,601-6,000 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('successful smart home products Shopify stores', null, 3),
  ('successful wearable technology Shopify stores', null, 3),
  ('top audio products DTC brands', null, 3),
@@ -4580,21 +6226,7 @@ from services s,
  ('ecommerce company healthy food', null, 3),
  ('ecommerce company meal kits', null, 3),
  ('ecommerce company organic food', null, 3),
- ('ecommerce company packaged food', null, 3)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 4,401-4,800 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('ecommerce company packaged food', null, 3),
  ('ecommerce company snack', null, 3),
  ('ecommerce company specialty food', null, 3),
  ('ecommerce company tea', null, 3),
@@ -4604,7 +6236,21 @@ from services s,
  ('emerging candy brands', null, 3),
  ('emerging chocolate DTC brands', null, 3),
  ('emerging chocolate brands', null, 3),
- ('emerging coffee DTC brands', null, 3),
+ ('emerging coffee DTC brands', null, 3)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 6,001-6,400 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('emerging coffee brands', null, 3),
  ('emerging food DTC brands', null, 3),
  ('emerging food brands', null, 3),
@@ -4994,21 +6640,7 @@ from services s,
  ('best home goods online stores', null, 3),
  ('best home organization DTC brands', null, 3),
  ('best home organization online stores', null, 3),
- ('best household products DTC brands', null, 3)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 4,801-5,200 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('best household products DTC brands', null, 3),
  ('best household products online stores', null, 3),
  ('best kitchen products DTC brands', null, 3),
  ('best kitchen products online stores', null, 3),
@@ -5018,7 +6650,21 @@ from services s,
  ('best mattresses online stores', null, 3),
  ('consumer products company bedding', null, 3),
  ('consumer products company cookware', null, 3),
- ('consumer products company furniture', null, 3),
+ ('consumer products company furniture', null, 3)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 6,401-6,800 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('consumer products company garden products', null, 3),
  ('consumer products company home decor', null, 3),
  ('consumer products company home goods', null, 3),
@@ -5408,21 +7054,7 @@ from services s,
  ('product manufacturer craft products', null, 3),
  ('product manufacturer gifts', null, 3),
  ('product manufacturer hardware', null, 3),
- ('product manufacturer hobby products', null, 3)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 5,201-5,600 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('product manufacturer hobby products', null, 3),
  ('product manufacturer lifestyle products', null, 3),
  ('product manufacturer luxury goods', null, 3),
  ('product manufacturer musical instruments', null, 3),
@@ -5432,7 +7064,21 @@ from services s,
  ('stationery brands directory', null, 3),
  ('stationery consumer brands directory', null, 3),
  ('stationery ecommerce brands directory', null, 3),
- ('successful automotive accessories Shopify stores', null, 3),
+ ('successful automotive accessories Shopify stores', null, 3)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 6,801-7,200 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('successful car accessories Shopify stores', null, 3),
  ('successful collectibles Shopify stores', null, 3),
  ('successful craft products Shopify stores', null, 3),
@@ -5822,21 +7468,7 @@ from services s,
  ('cycling products brands directory', null, 3),
  ('cycling products consumer brands directory', null, 3),
  ('cycling products ecommerce brands directory', null, 3),
- ('ecommerce company camping gear', null, 3)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 5,601-6,000 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('ecommerce company camping gear', null, 3),
  ('ecommerce company cycling products', null, 3),
  ('ecommerce company fishing products', null, 3),
  ('ecommerce company fitness equipment', null, 3),
@@ -5846,7 +7478,21 @@ from services s,
  ('ecommerce company running products', null, 3),
  ('ecommerce company sporting goods', null, 3),
  ('ecommerce company sports equipment', null, 3),
- ('emerging camping gear DTC brands', null, 3),
+ ('emerging camping gear DTC brands', null, 3)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 7,201-7,600 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('emerging camping gear brands', null, 3),
  ('emerging cycling products DTC brands', null, 3),
  ('emerging cycling products brands', null, 3),
@@ -6236,21 +7882,7 @@ from services s,
  ('ecommerce brand DTC fulfillment', null, 4),
  ('ecommerce brand direct shipping', null, 4),
  ('ecommerce brand distribution', null, 4),
- ('ecommerce brand distribution center', null, 4)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 6,001-6,400 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('ecommerce brand distribution center', null, 4),
  ('ecommerce brand ecommerce fulfillment', null, 4),
  ('ecommerce brand fulfillment', null, 4),
  ('ecommerce brand international shipping', null, 4),
@@ -6260,7 +7892,21 @@ from services s,
  ('ecommerce brand omnichannel', null, 4),
  ('ecommerce brand order fulfillment', null, 4),
  ('ecommerce brand order processing', null, 4),
- ('ecommerce brand order shipping', null, 4),
+ ('ecommerce brand order shipping', null, 4)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 7,601-8,000 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('ecommerce brand pick and pack', null, 4),
  ('ecommerce brand pick pack ship', null, 4),
  ('ecommerce brand retail fulfillment', null, 4),
@@ -6650,21 +8296,7 @@ from services s,
  ('DTC vitamins brands France', 'FR', 4),
  ('DTC vitamins brands Germany', 'DE', 4),
  ('DTC vitamins brands India', 'IN', 4),
- ('DTC vitamins brands Italy', 'IT', 4)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 6,401-6,800 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('DTC vitamins brands Italy', 'IT', 4),
  ('DTC vitamins brands Netherlands', 'NL', 4),
  ('DTC vitamins brands Singapore', 'SG', 4),
  ('DTC vitamins brands Spain', 'ES', 4),
@@ -6674,7 +8306,21 @@ from services s,
  ('DTC vitamins brands United Kingdom', 'GB', 4),
  ('DTC vitamins brands United States', 'US', 4),
  ('Shopify brands Australia', 'AU', 4),
- ('Shopify brands Canada', 'CA', 4),
+ ('Shopify brands Canada', 'CA', 4)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 8,001-8,400 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('Shopify brands France', 'FR', 4),
  ('Shopify brands Germany', 'DE', 4),
  ('Shopify brands India', 'IN', 4),
@@ -7064,21 +8710,7 @@ from services s,
  ('snack brands UK', 'GB', 4),
  ('snack brands USA', 'US', 4),
  ('snack brands United Kingdom', 'GB', 4),
- ('snack brands United States', 'US', 4)
-) as v(query, country, priority)
-where s.slug = '3pl'
-  and not exists (
-    select 1 from discovery_queries dq
-    where dq.service_id = s.id and dq.query = v.query
-      and dq.country is not distinct from v.country);
-
--- ---------------------------------------------------------------------
--- queries 6,801-6,842 of 6,842
--- ---------------------------------------------------------------------
-insert into discovery_queries (service_id, query, country, priority)
-select s.id, v.query, v.country, v.priority
-from services s,
-(values
+ ('snack brands United States', 'US', 4),
  ('supplements brands Australia', 'AU', 4),
  ('supplements brands Canada', 'CA', 4),
  ('supplements brands France', 'FR', 4),
@@ -7088,7 +8720,21 @@ from services s,
  ('supplements brands Netherlands', 'NL', 4),
  ('supplements brands Singapore', 'SG', 4),
  ('supplements brands Spain', 'ES', 4),
- ('supplements brands UAE', 'AE', 4),
+ ('supplements brands UAE', 'AE', 4)
+) as v(query, country, priority)
+where s.slug = '3pl'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- ---------------------------------------------------------------------
+-- queries 8,401-8,432 of 8,432
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
  ('supplements brands UK', 'GB', 4),
  ('supplements brands USA', 'US', 4),
  ('supplements brands United Kingdom', 'GB', 4),
@@ -7135,4 +8781,4 @@ where s.slug = '3pl'
 select priority as tier, count(*) as queries
 from discovery_queries
 group by priority order by priority;
--- Expect roughly: tier1 630, tier2 2835, tier3 2288, tier4 1089
+-- Expect roughly: tier1 2221, tier2 2834, tier3 2288, tier4 1089

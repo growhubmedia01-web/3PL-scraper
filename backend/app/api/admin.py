@@ -240,3 +240,55 @@ def run_migration(db: Session = Depends(get_db)):
             results.append({"sql": sql[:60], "status": "error", "error": str(exc)[:200]})
     return {"results": results}
 
+
+@router.post("/seed-queries")
+def seed_queries(service_ref: str = "3pl", tier: int | None = None,
+                 db: Session = Depends(get_db)):
+    """Insert all queries from the query library that don't already exist.
+
+    Safe to call multiple times - uses a NOT EXISTS check. Pass tier=1 to
+    only insert the new high-intent 3PL queries without re-seeding everything.
+    """
+    import sys
+    from pathlib import Path
+    from sqlalchemy import func as _func
+
+    scripts_dir = Path(__file__).resolve().parent.parent.parent / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    from query_library import build_library  # type: ignore[import]
+
+    service = _service(db, service_ref)
+    all_queries = build_library()
+    if tier is not None:
+        all_queries = [q for q in all_queries if q.tier == tier]
+
+    # Fetch existing query texts once for fast dedup
+    existing_texts: set[str] = set(
+        db.execute(
+            select(DiscoveryQuery.query)
+            .where(DiscoveryQuery.service_id == service.id)
+        ).scalars().all()
+    )
+
+    added = 0
+    for q in all_queries:
+        if q.text not in existing_texts:
+            db.add(DiscoveryQuery(
+                service_id=service.id,
+                query=q.text,
+                country=q.country,
+                priority=q.tier,
+                enabled=True,
+            ))
+            existing_texts.add(q.text)
+            added += 1
+
+    db.commit()
+    total = db.execute(
+        select(_func.count(DiscoveryQuery.id))
+        .where(DiscoveryQuery.service_id == service.id)
+    ).scalar_one()
+
+    return {"added": added, "skipped": len(all_queries) - added,
+            "total_now": total, "library_size": len(all_queries)}
