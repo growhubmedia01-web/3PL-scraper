@@ -98,6 +98,11 @@ def _local_process_queue(service_slug: str, limit: int,
             stats = {"queued_at_start": len(companies)}
             status, error = "failed", f"{type(exc).__name__}: {exc}"
             log.exception("process_queue failed")
+            # The DB cancelled our statement (lock timeout, etc.), which puts
+            # the session into a rolled-back state. We must explicitly rollback
+            # before issuing any further SQL, or SQLAlchemy will raise
+            # PendingRollbackError on the db.merge() below.
+            db.rollback()
 
         # process_batch commits per company, so re-attach the run row.
         run = db.merge(run)
