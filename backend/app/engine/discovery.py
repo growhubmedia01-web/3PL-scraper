@@ -288,18 +288,18 @@ def add_company_manually(db: Session, url_or_domain: str,
 
 
 def queued_companies(db: Session, limit: int = 50) -> list[Company]:
-    """Return up to *limit* companies that are ready to be processed.
+    """Return up to *limit* companies ready to be processed.
 
-    Uses ``FOR UPDATE SKIP LOCKED`` so that concurrent workers never receive
-    the same row. Without the lock hint, two simultaneous /process-queue calls
-    fetch an identical list and both try to write ``status='crawling'`` on the
-    same row — one succeeds, the other is cancelled by Postgres's statement
-    timeout (lock-wait cancellation), poisoning the whole session.
+    Concurrency is handled by the status field: crawl_company() immediately
+    sets status='crawling' on entry, so a company picked by one worker is
+    invisible to the next SELECT (which filters on queued/discovered only).
+    FOR UPDATE SKIP LOCKED is intentionally NOT used here - long-running
+    batches on free-tier hosts with PgBouncer can leave locks orphaned,
+    permanently hiding rows from all future workers.
     """
     return list(db.execute(
         select(Company)
         .where(Company.status.in_(("queued", "discovered")))
         .order_by(Company.created_at)
         .limit(limit)
-        .with_for_update(skip_locked=True)
     ).scalars().all())
