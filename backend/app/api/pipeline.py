@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -245,15 +245,23 @@ def process_queue(payload: AnalyzeRequest,
     a large one.
     """
     slug = payload.service_slug or settings.default_service_slug
-    pending = len(queued_companies(db, limit=5000))
+    # Use a plain COUNT (no row lock) so we don't accidentally hold
+    # FOR UPDATE locks that would block _local_process_queue's own
+    # SKIP LOCKED query in a separate session.
+    pending = db.scalar(
+        select(func.count()).select_from(Company)
+        .where(Company.status.in_(("queued", "discovered")))
+    ) or 0
     if pending == 0:
         return TaskAccepted(accepted=False, message="No companies queued",
                             result={"queued": 0})
 
     stats = _local_process_queue(slug, limit, max_seconds)
 
-    db.expire_all()
-    still_pending = len(queued_companies(db, limit=5000))
+    still_pending = db.scalar(
+        select(func.count()).select_from(Company)
+        .where(Company.status.in_(("queued", "discovered")))
+    ) or 0
     processed = stats.get("processed", pending - still_pending)
     stats["queued_remaining"] = still_pending
 
