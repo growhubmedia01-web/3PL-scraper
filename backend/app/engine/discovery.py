@@ -201,7 +201,7 @@ def run_discovery(db: Session, config: ServiceConfig,
                     continue
 
                 company = Company(
-                    name=candidate_name[:200] or None,
+                    name=candidate_name[:200] if candidate_name else None,
                     domain=domain,
                     website=root_url(domain),
                     status="queued",
