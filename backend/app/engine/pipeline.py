@@ -214,9 +214,27 @@ def process_batch(db: Session, companies: list[Company], config: ServiceConfig,
         # so a timeout mid-batch still leaves everything already done saved.
         try:
             db.commit()
-        except Exception:
+        except Exception as commit_exc:
             db.rollback()
             batch.errors += 1
+            log.warning("Commit failed for %s (%s) - marking error and continuing",
+                        company.domain, type(commit_exc).__name__)
+            # Try to mark this company as error in a fresh transaction so it
+            # leaves the queue and doesn't block future runs.
+            try:
+                from sqlalchemy import text as _text
+                db.execute(_text(
+                    "UPDATE companies SET status='error', "
+                    "rejection_reason='commit failed - possible lock timeout', "
+                    "updated_at=NOW() WHERE id=:id"
+                ), {"id": str(company.id)})
+                db.commit()
+                log.info("Marked %s as error after commit failure", company.domain)
+            except Exception as mark_exc:
+                db.rollback()
+                log.warning("Could not mark %s as error: %s", company.domain,
+                            mark_exc)
+
 
     batch.elapsed_seconds = time.monotonic() - started
     return batch

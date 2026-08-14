@@ -137,21 +137,39 @@ def crawl_company(db: Session, company: Company,
     result = CrawlResult(company_id=company.id, domain=company.domain)
     base = company.website or root_url(company.domain)
 
+    # Set status='crawling' in a *separate* short-lived session with a tight
+    # lock_timeout. If another connection holds the row lock we give up in 2s
+    # and mark the company as error rather than timing out the whole batch
+    # session (which would rollback the PipelineRun and all other work done
+    # so far in the outer db session).
+    from app.db import session_scope as _ss
     company.status = "crawling"
     try:
-        with db.begin_nested():  # SAVEPOINT - a lock error here must not
-            db.flush()           # poison the outer transaction.
+        with _ss() as _lock_db:
+            from sqlalchemy import text as _t
+            _lock_db.execute(_t("SET LOCAL lock_timeout = '2s'"))
+            _lock_db.execute(_t(
+                "UPDATE companies SET status='crawling', updated_at=NOW() "
+                "WHERE id=:id AND status IN ('queued','discovered')"
+            ), {"id": str(company.id)})
     except Exception as exc:
-        # QueryCanceled (statement timeout while waiting for row lock) aborts
-        # the *entire* Postgres transaction, not just the savepoint. We must
-        # explicitly rollback so the session is clean for the next company.
-        # Reset status so this company is retried on the next run.
-        log.warning("Could not lock %s for crawling (%s) - rolling back and skipping",
-                    company.domain, exc)
-        db.rollback()
-        company.status = "queued"
+        log.warning("Could not lock %s for crawling (lock_timeout) - marking error",
+                    company.domain)
+        # Mark as error in yet another fresh session so it leaves the queue.
+        try:
+            with _ss() as _err_db:
+                from sqlalchemy import text as _t2
+                _err_db.execute(_t2(
+                    "UPDATE companies SET status='error', "
+                    "rejection_reason='persistent row lock - skipped', "
+                    "updated_at=NOW() WHERE id=:id"
+                ), {"id": str(company.id)})
+        except Exception:
+            pass
+        company.status = "error"
         result.error = f"lock conflict: {exc}"
         return result
+
 
     timeout = httpx.Timeout(settings.crawl_timeout_seconds)
     try:
