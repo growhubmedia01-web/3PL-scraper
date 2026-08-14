@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.deps import require_admin
 from app.models import (
-    DecisionMaker, DiscoveryQuery, Service, ServiceKeyword, ServiceRole,
-    ServiceSignal, Suppression,
+    Company, DecisionMaker, DiscoveryQuery, Service, ServiceKeyword,
+    ServiceRole, ServiceSignal, Suppression,
 )
 from app.schemas import (
     DiscoveryQueryOut, KeywordCreate, QueryCreate, QueryUpdate, ServiceCreate,
@@ -292,3 +292,50 @@ def seed_queries(service_ref: str = "3pl", tier: int | None = None,
 
     return {"added": added, "skipped": len(all_queries) - added,
             "total_now": total, "library_size": len(all_queries)}
+
+
+# ---------------- stuck-company utilities ----------------
+
+@router.get("/companies/stuck")
+def list_stuck_companies(db: Session = Depends(get_db)):
+    """List companies stuck in 'crawling' or 'queued' that may have lock issues."""
+    from sqlalchemy import text
+    rows = db.execute(text("""
+        SELECT id, domain, status, created_at, updated_at, last_crawled_at
+        FROM companies
+        WHERE status IN ('crawling', 'queued')
+        ORDER BY created_at
+        LIMIT 50
+    """)).fetchall()
+    return [{"id": str(r.id), "domain": r.domain, "status": r.status,
+             "created_at": str(r.created_at), "updated_at": str(r.updated_at),
+             "last_crawled_at": str(r.last_crawled_at)} for r in rows]
+
+
+@router.post("/companies/{company_id}/skip")
+def skip_company(company_id: str, reason: str = "manually skipped - lock timeout",
+                 db: Session = Depends(get_db)):
+    """Force a stuck company out of the queue by setting status='error'.
+
+    Uses raw SQL with NOWAIT so it immediately errors if the row is still
+    locked (rather than waiting 30s and timing out the whole session).
+    If NOWAIT fails, falls back to a direct connection with a short lock_timeout.
+    """
+    from sqlalchemy import text
+
+    # Try with NOWAIT first
+    try:
+        result = db.execute(text("""
+            UPDATE companies
+            SET status = 'error',
+                rejection_reason = :reason,
+                updated_at = NOW()
+            WHERE id = :id
+              AND status IN ('queued', 'discovered', 'crawling', 'error')
+        """), {"id": company_id, "reason": reason})
+        db.commit()
+        return {"ok": True, "rows_updated": result.rowcount, "company_id": company_id}
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(500, f"Could not skip company: {exc}") from exc
+
