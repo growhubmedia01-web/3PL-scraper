@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     exa_api_key: str = ""
     exa_api_keys: str = ""   # comma-separated for Exa key rotation (e.g. key1,key2,key3)
     search_cache_ttl_hours: int = 168
-    search_max_results: int = 20
+    search_max_results: int = 100
 
     # ---- llm ----
     ai_provider: str = "groq"
