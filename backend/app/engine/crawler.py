@@ -142,8 +142,14 @@ def crawl_company(db: Session, company: Company,
         with db.begin_nested():  # SAVEPOINT - a lock error here must not
             db.flush()           # poison the outer transaction.
     except Exception as exc:
-        log.warning("Could not lock %s for crawling (%s) - skipping",
+        # QueryCanceled (statement timeout while waiting for row lock) aborts
+        # the *entire* Postgres transaction, not just the savepoint. We must
+        # explicitly rollback so the session is clean for the next company.
+        # Reset status so this company is retried on the next run.
+        log.warning("Could not lock %s for crawling (%s) - rolling back and skipping",
                     company.domain, exc)
+        db.rollback()
+        company.status = "queued"
         result.error = f"lock conflict: {exc}"
         return result
 
