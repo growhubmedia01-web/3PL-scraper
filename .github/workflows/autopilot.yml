@@ -1,10 +1,11 @@
 name: 3PL Autopilot Cron
 
 on:
-  schedule:
-    # Runs every hour at minute 0.
-    - cron: '0 * * * *'
-  workflow_dispatch: # Allows manual trigger from the GitHub Actions UI
+  # Scheduled runs are handled by cron-job.org instead (console.cron-job.org)
+  # to avoid two independent schedulers hitting /api/pipeline/process-queue
+  # at once, which was causing DB row-lock contention and AI-provider rate-limit
+  # bursts. Kept as workflow_dispatch only, for manual/on-demand runs.
+  workflow_dispatch:
 
 jobs:
   run-autopilot:
