@@ -94,6 +94,7 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_api_keys: str = ""   # comma-separated for Groq key rotation (e.g. key1,key2,key3)
     gemini_api_key: str = ""
+    gemini_api_keys: str = ""   # comma-separated for Gemini key rotation (e.g. key1,key2,key3)
     openai_api_key: str = ""
 
     # ---- crawler ----
@@ -160,7 +161,8 @@ class Settings(BaseSettings):
     @property
     def any_llm_configured(self) -> bool:
         return bool(self.groq_api_key or self.groq_api_keys
-                    or self.gemini_api_key or self.openai_api_key)
+                    or self.gemini_api_key or self.gemini_api_keys
+                    or self.openai_api_key)
 
 
 @lru_cache
