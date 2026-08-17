@@ -1,12 +1,11 @@
 """Check if cron job links are working by querying live DB and hitting endpoints."""
-import urllib.parse
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session
-from app.models import PipelineRun, Company
 
-password = urllib.parse.quote("Shaik@HB1234")
-url = f"postgresql+psycopg://postgres.sgzaelsxfsoohzezpysy:{password}@aws-0-us-west-1.pooler.supabase.com:6543/postgres"
-engine = create_engine(url)
+from app.config import settings
+from app.models import Company, PipelineRun
+
+engine = create_engine(settings.database_url)
 db = Session(engine)
 
 print("=== Latest Pipeline Runs ===")
@@ -16,7 +15,6 @@ for r in runs:
     print(f"  {r.run_type} | {r.status} | {started} | err={r.error}")
 
 print("\n=== Company Status Counts ===")
-from sqlalchemy import func
 statuses = db.query(Company.status, func.count(Company.id)).group_by(Company.status).all()
 for status, count in statuses:
     print(f"  {status}: {count}")

@@ -25,6 +25,6 @@ jobs:
 
       - name: Process Queue (Crawl and Score companies)
         run: |
-          curl --max-time 120 -X POST "https://threepl-scraper.onrender.com/api/pipeline/process-queue?limit=25" \
+          curl --max-time 260 -X POST "https://threepl-scraper.onrender.com/api/pipeline/process-queue?limit=25&max_seconds=240" \
             -H "Content-Type: application/json" \
             -d '{}'
