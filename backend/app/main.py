@@ -77,12 +77,28 @@ def on_startup() -> None:
     # Without this the first symptom is an UndefinedColumn error thrown from
     # inside a background task, which is far harder to trace back.
     if settings.db_configured:
-        from app.db import engine
+        from app.db import engine, SessionLocal
         from app.schema_check import check_schema
         report = check_schema(engine)
         if not report.ok:
-            for line in report.summary().splitlines():
-                log.error(line)
+            log.warning("Database schema is out of date. Attempting automatic migration...")
+            from app.api.admin import run_migration
+            db = SessionLocal()
+            try:
+                migration_result = run_migration(db)
+                log.info("Migration result: %s", migration_result)
+            except Exception as exc:
+                log.exception("Automatic migration failed: %s", exc)
+            finally:
+                db.close()
+            
+            # Re-check schema
+            report = check_schema(engine)
+            if not report.ok:
+                for line in report.summary().splitlines():
+                    log.error(line)
+            else:
+                log.info("Database schema successfully migrated and matches the application.")
         else:
             log.info("Database schema matches the application.")
     if not settings.db_configured:
@@ -96,3 +112,4 @@ def on_startup() -> None:
             or settings.brave_search_api_key):
         log.warning("No search provider key configured - discovery will "
                     "return no results.")
+
