@@ -109,7 +109,7 @@ Two logical groups of tables (see `backend/app/models.py`, mirrored by `backend/
 `services`, `service_signals`, `service_keywords`, `discovery_queries`, `service_roles`.
 
 ### Generic company intelligence (shared across every service)
-- **`companies`** — domain (unique), name, country (+confidence), industry, `is_ecommerce`, `is_physical_product`, `platform` (Shopify/Woo/etc.), `business_model` (dtc/wholesale/manufacturer/retail/marketplace/subscription/importer/multi_channel), `sales_channels` (JSON list), `status` (discovered → queued → classified/rejected), `rejection_reason`.
+- **`companies`** — domain (unique), name, country (+confidence), industry, `is_ecommerce`, `is_physical_product`, `platform` (Shopify/Woo/etc.), `business_model` (dtc/wholesale/manufacturer/retail/marketplace/subscription/importer/multi_channel), `sales_channels` (JSON list), `status` (discovered → queued → classified/rejected), `rejection_reason`, `linkedin_url`/`linkedin_source`/`linkedin_checked_at` (see §7 addendum).
 - **`sources`** — every page or external document that contributed evidence; unique per `(company_id, url)`; carries `content_hash` for change detection.
 - **`crawl_jobs`** — one row per fetch attempt: status (`pending`/`ok`/`skipped`/`failed`), HTTP status, error, attempt count. Robots-blocked fetches are `skipped`, not `failed`.
 - **`signals`** — a detected, evidenced, time-bounded fact about a company *for a specific service* (`service_id` FK). Carries `strength`, `confidence`, `detected_at`/`expires_at`, and a `source_id` for citation.
@@ -194,9 +194,18 @@ Candidates are filtered against a plausible-name heuristic (2–3 capitalized wo
 
 Every candidate is checked against `suppressions` (GDPR right-to-object, by name or by company domain) before being written. Records are unique per `(company_id, name, job_title)`; re-detection with higher confidence updates the existing row rather than duplicating it.
 
-**`profile_url` stores the page the person was found on — the company's own website — not a LinkedIn or other third-party profile URL.** There is no LinkedIn scraper, LinkedIn API integration, or third-party people-enrichment call (Clearbit/Apollo/Hunter/Proxycurl/etc.) anywhere in this codebase; `linkedin.com` appears only in `utils/urls.py::BLOCKED_DOMAINS`, where it (and other social/aggregator domains) is rejected as a *candidate company domain* during discovery, unrelated to profile lookup.
+**`profile_url` stores the page the person was found on — the company's own website — not a LinkedIn or other third-party profile URL.** There is no LinkedIn scraper, LinkedIn API integration, or third-party people-enrichment call (Clearbit/Apollo/Hunter/Proxycurl/etc.) for *people* anywhere in this codebase; `linkedin.com` appears in `utils/urls.py::BLOCKED_DOMAINS`, where it (and other social/aggregator domains) is rejected as a *candidate company domain* during discovery, unrelated to profile lookup.
 
 This constraint is enforced structurally, not just by convention: `DecisionMaker` has no email column, and `backend/tests/test_no_email.py` asserts the absence at both the schema and CSV-export layers.
+
+### Company LinkedIn URL resolution (distinct from the above)
+
+`engine/linkedin.py` resolves a company's *own official LinkedIn page* (`companies.linkedin_url`) — separate from decision-maker/people enrichment above, which still never touches LinkedIn. Two tiers, cheapest first:
+
+- **Tier 1 (free)** — `extract_company_linkedin_url()` scans data already captured during the normal crawl: `schema.org` `Organization`/`Corporation` json_ld `sameAs` arrays (checked first — structured, company-published), then any `linkedin.com/company/...` link already present in the page's own anchor tags (`ExtractedPage.links`, previously captured but unused for this). Zero extra HTTP requests.
+- **Tier 2 (fallback)** — `search_company_linkedin_url()`, only if tier 1 finds nothing and external calls aren't disabled for the run: one `site:linkedin.com/company "{name}"` query through the existing `SearchService` (same caching/provider-pool infrastructure as everything else in `evidence.py`).
+
+Both tiers restrict matches to `/company/` paths only (`_is_linkedin_company_url()`), explicitly excluding `/in/` (personal profiles — must never surface here, same constraint as `DecisionMaker.profile_url`), `/school/`, `/jobs/`, `/posts/`. `companies.linkedin_source` records which tier resolved it (`json_ld` / `site_link` / `search`). `companies.linkedin_checked_at` is a repeat-spend guard: tier 2 fires at most once ever per company, regardless of whether it found anything, so re-processing never repeats the search-provider call. `resolve_company_linkedin()` runs in `pipeline.py` right after classification (rejected companies are never resolved), unconditionally for every classified company — not score-gated like AI analysis or decision-maker research, since it's cheap identity resolution rather than intent scoring. LinkedIn itself is never fetched directly by any of this.
 
 ---
 

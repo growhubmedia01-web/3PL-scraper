@@ -55,6 +55,16 @@ export default function LeadDetail() {
               className="underline hover:text-ink-900">
               {company.domain}
             </a>
+            {company.linkedin_url && (
+              <>
+                {' · '}
+                <a href={company.linkedin_url} target="_blank"
+                  rel="noreferrer noopener"
+                  className="underline hover:text-ink-900">
+                  LinkedIn
+                </a>
+              </>
+            )}
             {company.country && ` · ${company.country}`}
             {company.platform && ` · ${company.platform}`}
             {company.industry && ` · ${company.industry}`}

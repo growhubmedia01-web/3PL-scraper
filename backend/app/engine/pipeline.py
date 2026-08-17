@@ -5,6 +5,7 @@ Implements the funnel that keeps costs sane:
     discovered domains
         -> crawl + classify           (cheap, no paid API)
         -> reject irrelevant early    (records a reason, never reprocessed)
+        -> resolve LinkedIn URL       (free from crawl data, one SERP call at most)
         -> detect signals             (cheap, keyword/config driven)
         -> external evidence          (SERP calls - only for classified cos)
         -> AI analysis                (only above ai_min_raw_score)
@@ -25,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.engine import ai_analysis as ai
 from app.engine import decision_makers as dm
+from app.engine import linkedin
 from app.engine import scoring, signals as signal_engine
 from app.engine.classifier import apply_classification, classify
 from app.engine.crawler import crawl_company, load_pages_from_sources
@@ -109,6 +111,15 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
             result.reason = classification.rejection_reason
             log.info("Rejected %s: %s", company.domain, result.reason)
             return result
+
+        # ---- 2b. LinkedIn URL resolution (identity, not score-gated) ----
+        result.stage = "linkedin"
+        try:
+            linkedin.resolve_company_linkedin(
+                db, company, pages, skip_external=skip_external)
+        except Exception as exc:
+            log.warning("LinkedIn resolution failed for %s: %s",
+                        company.domain, exc)
 
         # ---- 3. External evidence (§33) --------------------------------
         result.stage = "evidence"

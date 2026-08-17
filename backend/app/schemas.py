@@ -99,6 +99,8 @@ class CompanyOut(ORMBase):
     name: str | None = None
     domain: str
     website: str | None = None
+    linkedin_url: str | None = None
+    linkedin_source: str | None = None
     country: str | None = None
     country_confidence: float | None = None
     industry: str | None = None

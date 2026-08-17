@@ -221,7 +221,8 @@ def list_suppressions(db: Session = Depends(get_db)):
 
 @router.post("/run-migration")
 def run_migration(db: Session = Depends(get_db)):
-    """Apply migration 004: add business_model and sales_channels columns.
+    """Apply migrations 004 and 006: business_model/sales_channels and
+    linkedin_url/linkedin_source/linkedin_checked_at columns.
     Safe to run multiple times (IF NOT EXISTS guards)."""
     from sqlalchemy import text
     results = []
@@ -229,6 +230,9 @@ def run_migration(db: Session = Depends(get_db)):
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS business_model text",
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS sales_channels jsonb NOT NULL DEFAULT '[]'::jsonb",
         "CREATE INDEX IF NOT EXISTS idx_companies_business_model ON companies(business_model)",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS linkedin_url text",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS linkedin_source text",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS linkedin_checked_at timestamptz",
     ]
     for sql in sqls:
         try:

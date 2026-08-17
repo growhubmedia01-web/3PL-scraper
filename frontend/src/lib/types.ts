@@ -63,6 +63,7 @@ export interface ScoreLine {
 
 export interface Company {
   id: string; name: string | null; domain: string; website: string | null
+  linkedin_url: string | null; linkedin_source: string | null
   country: string | null; industry: string | null; description: string | null
   is_ecommerce: boolean | null; is_physical_product: boolean | null
   platform: string | null; business_model: string | null

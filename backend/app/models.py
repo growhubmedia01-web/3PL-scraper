@@ -164,6 +164,9 @@ class Company(Base, TimestampMixin):
     name: Mapped[str | None] = mapped_column(Text)
     domain: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     website: Mapped[str | None] = mapped_column(Text)
+    linkedin_url: Mapped[str | None] = mapped_column(Text)
+    linkedin_source: Mapped[str | None] = mapped_column(Text)  # json_ld | site_link | search
+    linkedin_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     country: Mapped[str | None] = mapped_column(String(2))
     country_confidence: Mapped[float | None] = mapped_column(Float)
     industry: Mapped[str | None] = mapped_column(Text)

@@ -87,6 +87,8 @@ Three design choices exist specifically to prevent the two failure modes every l
 
 **It does not scrape LinkedIn or any social network** for profile data. The decision-maker names and titles it surfaces come only from a company's own public website (their team page, a press quote, a job listing) — never a third-party profile. LinkedIn domains are explicitly excluded from candidate discovery entirely.
 
+*(One narrower exception: a company's own official LinkedIn page URL — not a person's profile — may be identified as a reference link, either because the company links to it from their own site, or via a plain search-engine lookup. LinkedIn itself is never fetched or scraped for this; it's purely identity/context, and it's a separate thing from decision-maker enrichment, which still never touches LinkedIn at all.)*
+
 **It does not ignore a person's request to be left out.** There's a built-in suppression list — anyone (or any company) added to it is never written to, and any existing record is deleted immediately.
 
 **It does not keep data forever.** Records for companies that have gone quiet (no relevant activity in a year) are automatically dropped on a weekly schedule.
