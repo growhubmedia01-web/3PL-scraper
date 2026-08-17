@@ -61,7 +61,9 @@ def _get_next_key() -> str | None:
 
 class GeminiProvider(LLMProvider):
     name = "gemini"
-    default_model = "gemini-2.0-flash"
+    # gemini-2.0-flash was decommissioned by Google; confirmed working
+    # replacement via a direct API probe (2026-08-17).
+    default_model = "gemini-3.6-flash"
 
     def __init__(self, api_key: str | None = None):
         # If explicitly passed an api_key, use it (e.g. in tests).
