@@ -92,6 +92,7 @@ class Settings(BaseSettings):
     ai_max_tokens: int = 2048
     ai_timeout: int = 60
     groq_api_key: str = ""
+    groq_api_keys: str = ""   # comma-separated for Groq key rotation (e.g. key1,key2,key3)
     gemini_api_key: str = ""
     openai_api_key: str = ""
 
@@ -158,7 +159,8 @@ class Settings(BaseSettings):
 
     @property
     def any_llm_configured(self) -> bool:
-        return bool(self.groq_api_key or self.gemini_api_key or self.openai_api_key)
+        return bool(self.groq_api_key or self.groq_api_keys
+                    or self.gemini_api_key or self.openai_api_key)
 
 
 @lru_cache
