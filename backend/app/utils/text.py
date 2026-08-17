@@ -6,11 +6,18 @@ import re
 
 WHITESPACE = re.compile(r"\s+")
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+# C0 control characters and DEL. Postgres rejects a null character outright
+# in text/JSONB columns (UntranslatableCharacter), which aborts the whole
+# transaction - garbled source pages occasionally leak these into scraped
+# text or search-result snippets, and a single bad character must never be
+# able to fail an entire batch (see §55 in engine/pipeline.py).
+_CONTROL_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
 def clean_text(value: str | None) -> str:
     if not value:
         return ""
+    value = _CONTROL_CHARS.sub("", value)
     return WHITESPACE.sub(" ", value).strip()
 
 

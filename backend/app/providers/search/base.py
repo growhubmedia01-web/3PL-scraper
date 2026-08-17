@@ -7,6 +7,8 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass, field
 
+from app.utils.text import clean_text
+
 
 @dataclass
 class SearchResult:
@@ -16,6 +18,14 @@ class SearchResult:
     position: int = 0
     published_at: str | None = None
     extra: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Vendors occasionally return raw control characters (e.g. a literal
+        # NUL byte) from garbled source pages - sanitize once here so no
+        # downstream consumer (search_cache, discovery's title extraction,
+        # evidence text) has to remember to.
+        self.title = clean_text(self.title)
+        self.snippet = clean_text(self.snippet)
 
     def to_dict(self) -> dict:
         return {
