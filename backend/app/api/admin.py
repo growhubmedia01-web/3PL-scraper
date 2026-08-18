@@ -352,7 +352,12 @@ def skip_company(company_id: str, reason: str = "manually skipped - lock timeout
 # ---------------- LinkedIn backfill ----------------
 
 @router.post("/backfill-linkedin")
-def backfill_linkedin(limit: int = Query(50, ge=1, le=200),
+def backfill_linkedin(limit: int = Query(200, ge=1, le=500),
+                      max_seconds: float = Query(
+                          20, ge=5, le=25,
+                          description="Wall-clock budget; the call returns "
+                                      "when this is reached even if the "
+                                      "backlog is not empty"),
                       db: Session = Depends(get_db)):
     """One-time sweep: resolve LinkedIn URLs for already-classified companies
     that predate this feature (resolve_company_linkedin normally only runs
@@ -363,10 +368,18 @@ def backfill_linkedin(limit: int = Query(50, ge=1, le=200),
     not links or json_ld - so this can only attempt tier 2 (search). That
     needs nothing but company.name/domain, so no re-crawl is required.
 
-    Bounded by `limit` and gated by the same linkedin_checked_at guard the
-    normal pipeline uses, so calling this repeatedly is always safe and
-    never repeats a search for a company already attempted.
+    Time-bounded like /api/pipeline/process-queue, not just count-bounded: a
+    search call takes ~2-4s, so `limit=20` alone (~60-80s) was long enough to
+    exceed Render's gateway timeout and crash the instance mid-request.
+    `max_seconds` defaults conservatively low since, unlike process-queue,
+    nothing else calls this repeatedly on a schedule - call it again to
+    continue. Gated by the same linkedin_checked_at guard the normal
+    pipeline uses, so calling this repeatedly is always safe and never
+    repeats a search for a company already attempted.
     """
+    import time
+
+    deadline = time.monotonic() + max_seconds
     companies = db.execute(
         select(Company).where(
             Company.status == "classified",
@@ -375,8 +388,14 @@ def backfill_linkedin(limit: int = Query(50, ge=1, le=200),
         ).order_by(Company.created_at).limit(limit)
     ).scalars().all()
 
+    checked = 0
     found = 0
+    stopped_reason = "completed"
     for company in companies:
+        if time.monotonic() >= deadline:
+            stopped_reason = "time_budget_reached"
+            break
+        checked += 1
         try:
             if linkedin.resolve_company_linkedin(db, company, []):
                 found += 1
@@ -394,5 +413,8 @@ def backfill_linkedin(limit: int = Query(50, ge=1, le=200),
         )
     ).scalar_one()
 
-    return {"checked": len(companies), "found": found, "remaining": remaining}
+    return {"checked": checked, "found": found, "remaining": remaining,
+            "stopped_reason": stopped_reason,
+            "note": "call again to continue" if stopped_reason ==
+                    "time_budget_reached" else None}
 
