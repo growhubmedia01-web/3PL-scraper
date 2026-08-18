@@ -7,6 +7,7 @@ from app.engine.linkedin import (
     extract_company_linkedin_url, resolve_company_linkedin,
     search_company_linkedin_url,
 )
+from app.models import Company
 from app.providers.search import factory
 from app.providers.search.base import SearchProvider, SearchResult
 
@@ -48,6 +49,25 @@ def test_other_linkedin_paths_are_ignored():
 def test_no_match_returns_none():
     p = page(links=["https://twitter.com/examplebrand"])
     assert extract_company_linkedin_url([p]) is None
+
+
+def test_admin_urls_are_ignored():
+    p = page(links=["https://linkedin.com/company/104532730/admin/dashboard"])
+    assert extract_company_linkedin_url([p]) is None
+
+
+def test_tracking_params_are_stripped_from_site_link():
+    p = page(links=["https://linkedin.com/company/example-brand?trk=company_logo"])
+    result = extract_company_linkedin_url([p])
+    assert result == ("https://linkedin.com/company/example-brand", "site_link")
+
+
+def test_tracking_params_are_stripped_from_json_ld():
+    p = page(json_ld=[{"@type": "Organization",
+                       "sameAs": ["https://linkedin.com/company/example-brand"
+                                  "?originalSubdomain=uk"]}])
+    result = extract_company_linkedin_url([p])
+    assert result == ("https://linkedin.com/company/example-brand", "json_ld")
 
 
 class FakeLinkedInProvider(SearchProvider):
@@ -103,6 +123,39 @@ def test_tier2_search_finds_company_page(db, company, mock_linkedin_provider):
 
 def test_tier2_search_filters_noise(db, company, mock_noise_provider):
     assert search_company_linkedin_url(db, company) is None
+
+
+class FakeWrongCompanyProvider(SearchProvider):
+    """Reproduces the real bug: a generic/short scraped name ('Today')
+    weakly matches an unrelated company's LinkedIn page via a substring
+    coincidence, even though the domains have nothing in common."""
+    name = "fake_wrong"
+
+    @property
+    def configured(self) -> bool:
+        return True
+
+    def search(self, query, *, country=None, num=20, page=1):
+        return [SearchResult(url="https://linkedin.com/company/usa-today",
+                             title="USA Today | LinkedIn",
+                             snippet="USA Today is a news organization.")]
+
+
+@pytest.fixture
+def mock_wrong_company_provider(monkeypatch):
+    monkeypatch.setattr(factory, "_REGISTRY", {"fake_wrong": FakeWrongCompanyProvider})
+    from app.config import settings
+    monkeypatch.setattr(settings, "search_provider", "fake_wrong")
+
+
+def test_tier2_rejects_match_missing_domain_root(db, mock_wrong_company_provider):
+    company = Company(name="Today", domain="abellemon.com.au",
+                      website="https://abellemon.com.au", status="classified")
+    db.add(company)
+    db.flush()
+    assert search_company_linkedin_url(db, company) is None, \
+        "'today' matching inside 'USA Today' must not be enough - the " \
+        "domain root 'abellemon' appears nowhere in the result"
 
 
 def test_resolve_skips_tier2_when_tier1_succeeds(db, company, mock_linkedin_provider):

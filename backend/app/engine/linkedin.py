@@ -17,31 +17,46 @@ via their documented public JSON endpoints rather than scraped).
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 from sqlalchemy.orm import Session
 
 from app.engine.extractor import ExtractedPage
 from app.models import Company
 from app.providers.search.factory import SearchService
-from app.utils.urls import normalize_url
+from app.utils.urls import domain_root, normalize_url
 
 log = logging.getLogger(__name__)
 
 
 def _is_linkedin_company_url(url: str | None) -> bool:
-    """True only for a company page - '/company/<slug>'. Explicitly
+    """True only for a public company page - '/company/<slug>'. Explicitly
     excludes '/in/<person>' (a personal profile - must never be surfaced
     here, same constraint as DecisionMaker.profile_url never pointing to
-    LinkedIn), '/school/', '/jobs/', '/posts/', etc."""
+    LinkedIn), '/school/', '/jobs/', '/posts/', and '/admin' (a private
+    management URL - one leaked into a crawled page's HTML once, pointing
+    a lead at a login wall instead of a usable page)."""
     if not url:
         return False
     parsed = urlparse(url)
     host = parsed.netloc.lower().removeprefix("www.")
     if host != "linkedin.com":
         return False
-    return parsed.path.lower().startswith("/company/")
+    path = parsed.path.lower()
+    if not path.startswith("/company/"):
+        return False
+    return "/admin" not in path
+
+
+def _clean_linkedin_url(url: str) -> str:
+    """Drop query params and fragment. LinkedIn's own tracking params
+    (trk, viewAsMember, originalSubdomain, ...) carry no meaning for a
+    reference link, and normalize_url()'s generic tracking-param list
+    (utm_, fbclid, ...) doesn't know about LinkedIn-specific ones."""
+    parsed = urlparse(url)
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
 
 
 def extract_company_linkedin_url(
@@ -61,13 +76,13 @@ def extract_company_linkedin_url(
                 if _is_linkedin_company_url(candidate):
                     norm = normalize_url(candidate)
                     if norm:
-                        return norm, "json_ld"
+                        return _clean_linkedin_url(norm), "json_ld"
 
     for page in pages:
         for link in page.links:
             if _is_linkedin_company_url(link):
                 norm = normalize_url(link) or link
-                return norm, "site_link"
+                return _clean_linkedin_url(norm), "site_link"
 
     return None
 
@@ -91,16 +106,33 @@ def search_company_linkedin_url(db: Session,
         log.warning("LinkedIn search failed for %s: %s", company.domain, exc)
         return None
 
+    # The domain is authoritative (it was actually crawled); company.name is
+    # a scraped guess that can be short or generic - e.g. a mis-extracted
+    # name of just "Today" let a search match land on linkedin.com/company/
+    # usa-today, a completely unrelated company, because "today" trivially
+    # appears in "USA Today | LinkedIn". Requiring the domain's own brand
+    # root (which a genuine match's snippet or URL slug should contain) is
+    # a much stronger identity check than the name alone.
+    #
+    # Compared with spaces/hyphens stripped from both sides: a real name
+    # like "Example Brand" (domain root "examplebrand") legitimately shows
+    # up as "Example Brand" in a snippet or "example-brand" in a URL slug -
+    # neither contains the literal, unbroken substring "examplebrand".
+    root = domain_root(company.domain).lower()
+
     for result in results:
         if not _is_linkedin_company_url(result.url):
             continue
-        # Require the company name to actually appear, same noise filter
-        # evidence.py uses for its own external searches.
         blob = f"{result.title} {result.snippet}".lower()
         if name.lower()[:12] not in blob:
             continue
+        if len(root) >= 4:
+            blob_compact = re.sub(r"[\s\-]", "", blob)
+            url_compact = re.sub(r"[\s\-]", "", result.url.lower())
+            if root not in blob_compact and root not in url_compact:
+                continue
         norm = normalize_url(result.url) or result.url
-        return norm, "search"
+        return _clean_linkedin_url(norm), "search"
     return None
 
 

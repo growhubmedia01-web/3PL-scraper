@@ -103,5 +103,13 @@ def same_registrable_domain(a: str, b: str) -> bool:
     return bool(na and nb and na == nb)
 
 
+def domain_root(domain: str) -> str:
+    """'abellemon.com.au' -> 'abellemon' - the brand-identifying part, with
+    the TLD/suffix stripped. Useful as a reliable identity check when a
+    scraped company.name may be short, generic, or wrong (the domain is
+    what was actually verified to exist, the name is a guess)."""
+    return _EXTRACT(domain).domain
+
+
 def is_probably_company_site(url: str) -> bool:
     return normalize_domain(url) is not None
