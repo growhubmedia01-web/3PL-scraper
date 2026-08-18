@@ -6,12 +6,15 @@ All routes require the X-Admin-Token header.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import require_admin
+from app.engine import linkedin
 from app.models import (
     Company, DecisionMaker, DiscoveryQuery, Service, ServiceKeyword,
     ServiceRole, ServiceSignal, Suppression,
@@ -21,6 +24,8 @@ from app.schemas import (
     ServiceKeywordOut, ServiceOut, ServiceSignalOut, ServiceUpdate,
     SignalCreate, SignalUpdate, SuppressionCreate,
 )
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"],
                    dependencies=[Depends(require_admin)])
@@ -342,4 +347,52 @@ def skip_company(company_id: str, reason: str = "manually skipped - lock timeout
     except Exception as exc:
         db.rollback()
         raise HTTPException(500, f"Could not skip company: {exc}") from exc
+
+
+# ---------------- LinkedIn backfill ----------------
+
+@router.post("/backfill-linkedin")
+def backfill_linkedin(limit: int = Query(50, ge=1, le=200),
+                      db: Session = Depends(get_db)):
+    """One-time sweep: resolve LinkedIn URLs for already-classified companies
+    that predate this feature (resolve_company_linkedin normally only runs
+    during fresh pipeline processing, so it never touches historical rows).
+
+    Tier 1 (json_ld/site-link scan) needs the raw crawled page objects, which
+    aren't persisted anywhere - `sources.content` only stores extracted text,
+    not links or json_ld - so this can only attempt tier 2 (search). That
+    needs nothing but company.name/domain, so no re-crawl is required.
+
+    Bounded by `limit` and gated by the same linkedin_checked_at guard the
+    normal pipeline uses, so calling this repeatedly is always safe and
+    never repeats a search for a company already attempted.
+    """
+    companies = db.execute(
+        select(Company).where(
+            Company.status == "classified",
+            Company.linkedin_url.is_(None),
+            Company.linkedin_checked_at.is_(None),
+        ).order_by(Company.created_at).limit(limit)
+    ).scalars().all()
+
+    found = 0
+    for company in companies:
+        try:
+            if linkedin.resolve_company_linkedin(db, company, []):
+                found += 1
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            log.warning("LinkedIn backfill failed for %s: %s",
+                       company.domain, exc)
+
+    remaining = db.execute(
+        select(func.count()).select_from(Company).where(
+            Company.status == "classified",
+            Company.linkedin_url.is_(None),
+            Company.linkedin_checked_at.is_(None),
+        )
+    ).scalar_one()
+
+    return {"checked": len(companies), "found": found, "remaining": remaining}
 
