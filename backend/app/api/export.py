@@ -97,10 +97,17 @@ def export_csv(
             .order_by(DecisionMaker.role_priority, DecisionMaker.confidence.desc())
         ).scalars().all():
             people.setdefault(person.company_id, person)
-        for source in db.execute(
-            select(Source).where(Source.company_id.in_(company_ids))
-        ).scalars().all():
-            evidence.setdefault(source.company_id, []).append(source.url)
+        # Only company_id/url are ever used below (and only the first 10 per
+        # company at that) - select(Source) was pulling every column,
+        # including content/excerpt text blobs, across 50k+ rows for a
+        # full-size export. That alone was ~15s of an ~18s request that hit
+        # Render's timeout; two columns instead of the whole row cuts it to
+        # under 2s for the same row count.
+        for company_id, url in db.execute(
+            select(Source.company_id, Source.url)
+            .where(Source.company_id.in_(company_ids))
+        ).all():
+            evidence.setdefault(company_id, []).append(url)
 
     buffer = io.StringIO()
     writer = csv.writer(buffer, quoting=csv.QUOTE_MINIMAL)
