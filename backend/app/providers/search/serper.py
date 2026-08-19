@@ -107,6 +107,19 @@ class SerperProvider(SearchProvider):
                     log.warning("Serper key ...%s rate-limited (429), trying next key", key[-6:])
                     last_error = httpx.HTTPError(f"Key ...{key[-6:]} rate limited (429)")
                     continue
+                if resp.status_code == 400:
+                    # Serper returns 400 (not 402/429) for an exhausted key -
+                    # {"message": "Not enough credits", "statusCode": 400} -
+                    # a per-key/account condition exactly like 401/429, not a
+                    # malformed-request error. Without this, one dead key in
+                    # the pool broke every call regardless of how many other
+                    # working keys were configured, since raise_for_status()
+                    # below would abort the whole rotation on the first key
+                    # tried instead of moving to the next one.
+                    log.warning("Serper key ...%s returned 400 (%s), trying next key",
+                               key[-6:], resp.text[:120])
+                    last_error = SearchProviderError(f"Key ...{key[-6:]} returned 400: {resp.text[:200]}")
+                    continue
                 resp.raise_for_status()
                 return resp.json()
             except (httpx.HTTPError, SearchProviderError):

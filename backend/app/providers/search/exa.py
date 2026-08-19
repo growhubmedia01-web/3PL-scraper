@@ -105,6 +105,17 @@ class ExaProvider(SearchProvider):
                     log.warning("Exa key ...%s rate-limited (429), trying next key", key[-6:])
                     last_error = httpx.HTTPError(f"Key ...{key[-6:]} rate limited (429)")
                     continue
+                if resp.status_code == 400:
+                    # Mirrors the Serper fix: a vendor can signal "this key's
+                    # account is out of credit/balance" with a 400 rather
+                    # than 402/429, which is a per-key condition, not a
+                    # malformed-request error. Without this, one exhausted
+                    # key would abort the whole pool via raise_for_status()
+                    # below instead of trying the next one.
+                    log.warning("Exa key ...%s returned 400 (%s), trying next key",
+                               key[-6:], resp.text[:120])
+                    last_error = SearchProviderError(f"Key ...{key[-6:]} returned 400: {resp.text[:200]}")
+                    continue
                 resp.raise_for_status()
                 return resp.json()
             except (httpx.HTTPError, SearchProviderError):
