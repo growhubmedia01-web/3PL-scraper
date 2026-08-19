@@ -143,7 +143,24 @@ COMPETITOR_MARKERS = [
     "book a table", "our restaurant", "our hotel", "rooms from",
     "our law firm", "our attorneys", "financial advice",
     "recruitment agency", "staffing solutions", "we place candidates",
+    # media / publishing - a trade magazine writing ABOUT a goods brand's
+    # product launch reads a lot like the brand's own site (shipping,
+    # returns, retail-distribution vocabulary all appear, just describing
+    # someone else). Found live: a fashion-industry magazine and a
+    # commercial-real-estate news site both scored as STRONG goods leads.
+    "premier reporting for", "trade publication", "digital publication",
+    "commercial real estate news", "news and insights for the",
+    "our newsroom", "our editorial team", "media company covering",
 ]
+
+# Domain-name keywords that are near-exclusively used by publishers, not
+# goods brands - a much more reliable signal than page copy for a site
+# whose actual self-description phrasing doesn't match any fixed pattern
+# above (e.g. domain "underlinesmagazine.com" itself, regardless of how
+# the homepage happens to word its tagline).
+MEDIA_DOMAIN_KEYWORDS = (
+    "magazine", "gazette", "herald", "chronicle", "newswire", "newsletter",
+)
 
 # Signals that the company sells software/services, not goods.
 NON_PHYSICAL_MARKERS = [
@@ -345,7 +362,8 @@ def _detect_physical(pages: list[ExtractedPage],
 
 
 def _detect_excluded_business(pages: list[ExtractedPage],
-                              extra_types: list[str] | None = None
+                              extra_types: list[str] | None = None,
+                              domain: str | None = None
                               ) -> tuple[bool, list[str]]:
     """Is this a service business rather than a goods business?
 
@@ -362,6 +380,11 @@ def _detect_excluded_business(pages: list[ExtractedPage],
             p.searchable for p in pages
             if p.page_type in ("website", "about"))
         matched += [t for t in extra_types if contains_phrase(self_desc, t)]
+
+    if domain:
+        root = domain.lower()
+        matched += [f"publisher domain ({kw})" for kw in MEDIA_DOMAIN_KEYWORDS
+                   if kw in root]
 
     return bool(matched), sorted(set(matched))[:6]
 
@@ -470,7 +493,7 @@ def classify(company: Company, pages: list[ExtractedPage],
     # provider's own site is full of fulfillment vocabulary and would
     # otherwise score extremely well.
     is_excluded, excluded_ev = _detect_excluded_business(
-        pages, excluded_business_types)
+        pages, excluded_business_types, company.domain)
     if is_excluded:
         result.relevant = False
         result.rejection_reason = (

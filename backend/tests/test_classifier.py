@@ -62,3 +62,44 @@ def test_classifier_rejects_when_nothing_was_crawled(db, company):
     result = classify(company, [])
     assert result.relevant is False
     assert result.rejection_reason == "no pages crawled"
+
+
+def test_classifier_rejects_trade_magazine_reporting_on_other_brands(db, company):
+    """Real production bug: a fashion-industry magazine's homepage reads
+    'Premier reporting for intimate apparel' and its articles are full of
+    other brands' shipping/returns/retail-distribution vocabulary - it
+    scored STRONG as if it were a goods company itself."""
+    company.domain = "underlinesmagazine.com"
+    page = ExtractedPage(
+        url="https://underlinesmagazine.com",
+        title="Underlines Magazine - Premier reporting for intimate apparel",
+        text="Premier reporting for intimate apparel. New Designers Bringing "
+             "Fresh Perspectives to Scoop.")
+    result = classify(company, [page])
+    assert result.relevant is False
+    assert "service business" in result.rejection_reason
+
+
+def test_classifier_rejects_news_site_via_domain_keyword_alone(db, company):
+    """The domain-keyword check must catch a publisher even when the page
+    copy doesn't happen to match any fixed self-description phrase."""
+    company.domain = "widgetindustrymagazine.com"
+    page = ExtractedPage(
+        url="https://widgetindustrymagazine.com",
+        title="Widget Industry Magazine",
+        text="Add to cart. Free shipping worldwide. Ships within 2 days.")
+    result = classify(company, [page])
+    assert result.relevant is False
+
+
+def test_classifier_rejects_real_estate_news_site(db, company):
+    """Real production bug: bisnow.com ('Commercial Real Estate News -
+    Bisnow') scored STRONG the same way."""
+    company.domain = "bisnow.com"
+    page = ExtractedPage(
+        url="https://bisnow.com",
+        title="Commercial Real Estate News - Bisnow",
+        text="Commercial Real Estate News - Bisnow. Cities Atlanta Austin "
+             "Boston Chicago Dallas.")
+    result = classify(company, [page])
+    assert result.relevant is False
