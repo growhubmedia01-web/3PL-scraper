@@ -189,7 +189,8 @@ CURRENCY_COUNTRY = {"GBP": "GB", "USD": "US", "CAD": "CA", "AUD": "AU",
                     "INR": "IN", "JPY": "JP"}
 
 COUNTRY_PHRASES: list[tuple[str, str]] = [
-    (r"\bunited kingdom\b|\bengland\b|\bscotland\b|\bwales\b|\blondon\b", "GB"),
+    (r"\bunited kingdom\b|\bengland\b|\bscotland\b|\bwales\b|\blondon\b"
+     r"|\byorkshire\b|\bedinburgh\b|\bglasgow\b|\bcardiff\b|\bbelfast\b", "GB"),
     (r"\bunited states\b|\bu\.s\.a\.?\b|\bnew york\b|\blos angeles\b|\bcalifornia\b", "US"),
     (r"\bcanada\b|\btoronto\b|\bvancouver\b", "CA"),
     (r"\baustralia\b|\bsydney\b|\bmelbourne\b", "AU"),

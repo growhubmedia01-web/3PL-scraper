@@ -535,3 +535,37 @@ def test_19_queue_is_scoped_to_the_discovering_service(db, pet_service):
     assert pet_q == {"petco-found.com", "manual-add.com"}
     assert ps_q == {"ps-found.com", "manual-add.com"}
     assert len(queued_companies(db, 50)) == 3          # unscoped: unchanged
+
+
+# ---------------------------------------------------------------------
+# TEST 20 - lookalikes seen in the first live run: software for brands,
+# direct-to-consumer brands and a UK brand on a .com are not distributors
+# ---------------------------------------------------------------------
+@pytest.mark.parametrize("domain,home,contact,expected_type", [
+    ("wholesalefinder.com",
+     "Find the buyers who will stock your product. Reach independent pet "
+     "retailers and wholesale distributors. Book a demo or start your free "
+     "trial, then go to dashboard.", "Email our team.", "software_or_service_vendor"),
+    ("purrlitter.com",
+     "Premium natural pet supplies and cat food. Orders ship within 1 business "
+     "day. Free shipping on orders over $50. Shop all. Add to cart. Our story.",
+     "Questions? Email us.", "brand_owner"),
+])
+def test_20_software_and_dtc_brands_are_not_distributors(
+        db, pet_config, domain, home, contact, expected_type):
+    company = make_company(db, domain)
+    result = classify(company, [page(f"https://{domain}", home, domain),
+                                page(f"https://{domain}/contact", contact)],
+                      pet_config.excluded_business_types, config=pet_config)
+    assert result.company_type == expected_type
+    assert not result.relevant
+
+
+def test_20b_uk_region_is_foreign_evidence(db, pet_config):
+    company = make_company(db, "moorlandrawfood.com")
+    result = classify(company, [page(
+        "https://moorlandrawfood.com",
+        "Premium raw dog food, made in Yorkshire. Pet food for dogs and cats.",
+        "Moorland Raw")], pet_config.excluded_business_types, config=pet_config)
+    assert result.country == "GB"
+    assert not result.relevant
