@@ -115,6 +115,9 @@ export default function LeadDetail() {
               target="_blank" rel="noreferrer noopener"
               className="underline hover:text-ink-900">{company.domain}</a>
             {location && ` · ${location}`}
+            {data.location_unverified && (
+              <span className="ml-2"><Chip>location unverified - no address on site</Chip></span>
+            )}
           </div>
           <p className="text-sm text-ink-800 mt-3 max-w-3xl font-medium">{summary}</p>
         </div>

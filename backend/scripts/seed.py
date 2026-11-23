@@ -378,7 +378,7 @@ def run_sql_migrations() -> None:
     with engine.begin() as conn:
         for name in ("001_init.sql", "002_rls.sql", "003_seed_3pl.sql",
                      "004_broaden_beyond_ecommerce.sql", "006_linkedin_url.sql",
-                     *MIGRATION_FILES.values()):
+                     *MIGRATION_FILES.values(), "008_source_types.sql"):
             path = MIGRATIONS / name
             log.info("Applying %s", name)
             conn.execute(text(path.read_text()))

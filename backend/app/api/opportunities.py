@@ -271,6 +271,9 @@ def list_opportunities(
     interests = interest_map(db, service.id, company_ids) \
         if cfg.get("product_taxonomy") else {}
     no_demand = cfg.get("no_product_demand_message") or DEFAULT_NO_DEMAND
+    qual = cfg.get("qualification") or {}
+    verify_location = bool(qual.get("require_country_evidence"))
+    min_country_conf = float(qual.get("min_country_confidence", 0.5))
 
     items = []
     for opportunity, company in rows:
@@ -279,6 +282,8 @@ def list_opportunities(
             id=opportunity.id, company_id=company.id, company_name=company.name,
             domain=company.domain, website=company.website,
             country=company.country, industry=company.industry,
+            location_unverified=verify_location and float(
+                company.country_confidence or 0) < min_country_conf,
             platform=company.platform,
             business_model=company.business_model,
             score=float(opportunity.score),
@@ -356,8 +361,12 @@ def get_opportunity(service_ref: str, opportunity_id: str,
         .order_by(CompanyFact.fact_type, CompanyFact.confidence.desc())
     ).scalars().all()
     cfg = service.config or {}
+    qual = cfg.get("qualification") or {}
 
     return OpportunityDetail(
+        location_unverified=bool(qual.get("require_country_evidence")) and float(
+            company.country_confidence or 0) < float(
+                qual.get("min_country_confidence", 0.5)),
         product_interests=[ProductInterestOut.model_validate(r)
                            for r in interest_rows],
         company_facts=[CompanyFactOut.model_validate(f) for f in facts],

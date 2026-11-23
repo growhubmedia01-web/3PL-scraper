@@ -219,14 +219,18 @@ by tests.
 
 ## Discovery query library
 
-The library has 98 queries, deliberately small:
+The library has 631 queries:
 `scripts/services/powersports_aftermarket_sourcing.py::build_library()`.
+Discovery runs never-run queries first, so each run pays only for new
+searches. It was expanded from 98 when the first ~330 companies showed a
+~9% lead rate: 500 leads needs several thousand discovered companies.
+Supplier-sourcing phrasing (~25% lead rate) is the largest group.
 
 | Tier | Count | Purpose |
 |---|---|---|
-| 1 | 22 | direct purchasing intent, supplier onboarding |
-| 2 | 36 | recent category and brand expansion |
-| 3 | 30 | target-distributor discovery and qualification |
+| 1 | 162 | purchasing intent, supplier onboarding, per vehicle segment |
+| 2 | 247 | category and brand expansion, product-line and brand-carried distributors |
+| 3 | 212 | target-distributor discovery, all 50 states |
 | 4 | 10 | hiring, warehouses, acquisitions |
 
 Directories, trade publications, marketplaces and big retailers are listed

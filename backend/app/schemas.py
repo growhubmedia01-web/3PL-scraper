@@ -221,6 +221,9 @@ class OpportunityListItem(BaseModel):
     product_categories: list[str] = []
     product_demand_summary: str | None = None
     confidence: float | None = None
+    # True when the service requires a verified location and this company
+    # was kept without one (country confidence below the service minimum).
+    location_unverified: bool = False
 
 
 class OpportunityDetail(BaseModel):
@@ -236,6 +239,7 @@ class OpportunityDetail(BaseModel):
     company_facts: list[CompanyFactOut] = []
     product_demand_summary: str | None = None
     signal_dimensions: dict[str, str] = {}
+    location_unverified: bool = False
 
 
 class PaginatedOpportunities(BaseModel):

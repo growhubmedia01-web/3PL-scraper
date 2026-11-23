@@ -520,7 +520,10 @@ INDUSTRY_KEYWORDS = {
         "powersports", "power sports", "atv", "utv", "side-by-side",
         "side by side", "sxs", "motorcycle", "motorcycles", "dirt bike",
         "motocross", "snowmobile", "v-twin", "off-road vehicle",
-        "aftermarket parts", "dual sport", "adventure touring", "sled"],
+        "aftermarket parts", "dual sport", "adventure touring", "sled",
+        "personal watercraft", "pwc", "jet ski", "harley-davidson",
+        "dirtbike", "quad bike", "can-am", "polaris", "sea-doo", "ski-doo",
+        "arctic cat"],
 }
 
 ROLES: list[tuple[str, int]] = [
@@ -662,8 +665,17 @@ CONFIG: dict = {
         "min_country_confidence": 0.6,
         # US only: a company must be positively located in the US
         "require_country_evidence": True,
+        # ...except: a generic-TLD site with NO address and no foreign
+        # evidence becomes a lead flagged "location unverified" (its
+        # country_confidence stays below min_country_confidence).
+        "allow_unverified_location_tlds": ["com", "net", "us", "org", "biz"],
         "required_industry": "powersports",
-        "min_industry_markers": 2,
+        # One powersports marker is enough: the lead list should include
+        # weak-signal distributors, ranked LOW, rather than drop them.
+        "min_industry_markers": 1,
+        # Powersports parts are goods, so powersports evidence counts as
+        # physical-product evidence (no cart or shipping page required).
+        "industry_implies_physical": True,
     },
     "company_type_markers": COMPANY_TYPE_MARKERS,
     "hybrid_company_types": HYBRID_COMPANY_TYPES,
@@ -708,7 +720,8 @@ CONFIG: dict = {
 
 
 # =====================================================================
-# DISCOVERY QUERY LIBRARY - deliberately small. Tier = priority.
+# DISCOVERY QUERY LIBRARY - ~630 queries. Tier = priority; discovery runs
+#   never-run queries first, so each run only pays for new searches.
 #   1  direct purchasing intent and supplier onboarding
 #   2  recent product-category and brand expansion
 #   3  target distributor discovery and qualification
@@ -757,6 +770,71 @@ _PRODUCT_LINES = [
 ]
 _STATES = ["Texas", "California", "Minnesota", "Wisconsin", "Pennsylvania",
            "Georgia", "Ohio", "Florida", "Michigan", "Utah"]
+
+# ---- expansion library -------------------------------------------------
+# Measured locally (first ~330 companies): supplier-sourcing phrasing turned
+# ~25% of discovered companies into leads vs ~9% overall, so the expansion
+# leans on sourcing phrasing x vehicle segment x product line, then brand
+# carried, then every US state.
+_SEGMENTS = [
+    "powersports", "motorcycle", "ATV", "UTV", "side by side", "snowmobile",
+    "dirt bike", "motocross", "V-twin", "off-road", "personal watercraft",
+    "metric cruiser", "adventure motorcycle", "golf cart and UTV",
+]
+_SOURCING_PHRASES = [
+    "parts distributor vendor application",
+    "parts distributor new vendor setup",
+    "wholesale distributor seeking new product lines",
+    "distributor become a supplier",
+    "aftermarket distributor new supplier inquiry",
+    "parts wholesaler manufacturers wanted",
+    "distributor submit a new product",
+    "wholesale distributor dealers only",
+    "parts distributor brands we carry",
+    "accessories wholesale distributor",
+]
+_MORE_PRODUCT_LINES = [
+    "UTV roofs", "UTV doors", "UTV bumpers", "UTV audio", "UTV mirrors",
+    "UTV seats", "ATV plows", "snowmobile parts", "snowmobile apparel",
+    "motorcycle exhaust", "motorcycle tires", "motorcycle batteries",
+    "motorcycle brakes", "motorcycle lighting", "motorcycle seats",
+    "motocross graphics", "dirt bike plastics", "off-road gear",
+    "powersports chemicals", "powersports drive belts", "powersports clutch kits",
+    "lift kits UTV", "UTV wheels", "ATV accessories", "powersports trailers",
+    "motorcycle tools", "powersports covers", "tie-downs and ramps",
+]
+_LINE_PHRASES = [
+    "wholesale distributor for dealers",
+    "distributor vendor application",
+    "wholesale supplier to powersports dealers",
+]
+_BRANDS_CARRIED = [
+    "Kolpin", "Warn winch", "SuperATV", "EBC brakes", "K&N", "Yuasa",
+    "Maxima oil", "Kenda tires", "ITP tires", "Dunlop motorcycle tires",
+    "Shinko tires", "Kemimoto", "Rugged Radios", "Rigid lighting",
+    "Baja Designs", "Seizmik", "Moose Utility", "Pro Armor", "Bell helmets",
+    "Fly Racing", "Alpinestars", "Klim", "Icon motorcycle gear",
+    "Kuryakyn", "Vance & Hines", "Cobra exhaust", "Antigravity batteries",
+    "Motobatt", "Hiflofiltro", "DID chain", "RK chain", "EBC clutch",
+    "Gates belts", "Dayco belts", "Polaris accessories aftermarket",
+    "Can-Am accessories aftermarket", "Tusk", "Quadboss", "Dragonfire Racing",
+    "Interior Color", "Bad Dog", "Cycle Country", "Denali lighting",
+]
+_ALL_STATES = [
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+    "Connecticut", "Delaware", "Florida", "Georgia", "Idaho", "Illinois",
+    "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland",
+    "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri",
+    "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
+    "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+    "Oklahoma", "Oregon", "Pennsylvania", "South Carolina", "South Dakota",
+    "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+    "West Virginia", "Wisconsin", "Wyoming",
+]
+_GEO_TYPES = [
+    "powersports parts distributor", "motorcycle parts wholesale distributor",
+    "ATV UTV parts wholesale distributor", "powersports accessories wholesaler",
+]
 
 
 def build_library() -> list[Query]:
@@ -826,6 +904,24 @@ def build_library() -> list[Query]:
         "powersports distributor expands dealer network",
     ]:
         add(text, 4, "supporting_signals")
+
+    # ---- expansion: sourcing phrasing per vehicle segment ----
+    for seg in _SEGMENTS:
+        for phrase in _SOURCING_PHRASES:
+            add(f"{seg} {phrase}", 1, "supplier_sourcing")
+    # ---- expansion: product line wholesale distributors ----
+    for line in _PRODUCT_LINES + _MORE_PRODUCT_LINES:
+        for phrase in _LINE_PHRASES:
+            add(f"{line} {phrase}", 2, "product_distributors")
+    # ---- expansion: distributors carrying established aftermarket brands ----
+    for brand in _BRANDS_CARRIED:
+        add(f"{brand} authorized distributor powersports dealers", 2,
+            "brand_distributors")
+        add(f"{brand} wholesale distributor USA", 2, "brand_distributors")
+    # ---- expansion: every US state ----
+    for state in _ALL_STATES:
+        for kind in _GEO_TYPES:
+            add(f"{kind} {state}", 3, "distributor_geo")
 
     seen: set[tuple[str, str | None]] = set()
     unique: list[Query] = []
