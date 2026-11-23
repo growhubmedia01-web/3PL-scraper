@@ -241,6 +241,11 @@ def search_external_signals(db: Session, company: Company,
             # Skip results that are just the company's own site.
             if normalize_domain(result.url) == company.domain:
                 continue
+            # Never store social-network results: they are mostly personal
+            # profiles (linkedin.com/in/...), which this platform must not
+            # collect, and are not company evidence.
+            if is_social_network_url(result.url):
+                continue
             # Require the company name to actually appear, or it's noise.
             blob = f"{result.title} {result.snippet}".lower()
             if name.lower()[:12] not in blob:
@@ -277,6 +282,17 @@ def _parse_relative_date(value: str | None) -> datetime | None:
 
 
 ARTICLE_TIMEOUT_SECONDS = 8.0
+
+
+SOCIAL_NETWORK_HOSTS = ("linkedin.com", "facebook.com", "instagram.com",
+                        "twitter.com", "x.com", "tiktok.com", "threads.net",
+                        "pinterest.com", "reddit.com", "youtube.com")
+
+
+def is_social_network_url(url: str | None) -> bool:
+    from urllib.parse import urlparse
+    host = (urlparse(url or "").hostname or "").lower()
+    return any(host == h or host.endswith("." + h) for h in SOCIAL_NETWORK_HOSTS)
 
 
 def fetch_article(item: ExternalEvidence) -> ExternalEvidence:

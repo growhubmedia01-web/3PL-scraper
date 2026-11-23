@@ -406,7 +406,8 @@ KEYWORDS: list[tuple[str, str, str, float]] = (
           "prospective suppliers", "product submission form",
           "new brand submission", "brand submission", "submit your product",
           "submit your products", "submit your brand",
-          "accepting new brands", "accepting new vendors",
+          "accepting new brands", "accepting new vendors", "brand application",
+          "new brand application",
           "interested in becoming a vendor", "interested in becoming a supplier")
     + _kw("new_supplier_partnership", "expansion", 1.0,
           "distribution agreement", "distribution partnership",
@@ -653,16 +654,23 @@ INTEREST_TYPE_BY_SIGNAL = {
 }
 
 COMPANY_TYPE_MARKERS: dict[str, list[str]] = {
+    # Distribution evidence only. Wording a brand also uses about its own
+    # wholesale program ("b2b", "retail partners", "wholesale account",
+    # "become a retailer") is deliberately absent: it cannot tell a pet
+    # distributor from a pet brand selling to stores.
     "pet_specialty_distributor": [
-        "wholesale distributor", "wholesale distribution", "distributor of",
-        "we distribute", "pet specialty distributor", "pet food distributor",
-        "independent pet retailers", "independent pet stores",
-        "independent retailers", "pet specialty retailers", "retail partners",
-        "wholesale account", "retailer accounts", "serving retailers",
-        "brands we carry", "brands we distribute", "line card", "linecard",
-        "distribution center", "distribution centers", "wholesale only",
-        "trade only", "become a retailer", "retailer application",
-        "b2b", "delivery routes", "sales territory", "master distributor"],
+        "wholesale distributor", "wholesale distribution", "we distribute",
+        "pet specialty distributor", "pet food distributor",
+        "brands we carry", "brands we distribute", "brands we represent",
+        "line card", "linecard", "distribution center", "distribution centers",
+        "master distributor", "delivery routes", "sales territory",
+        "b2b distribution", "brand application", "partner with brands",
+        "we partner with brands", "brand partners", "responsible distributor",
+        "products we carry", "lines we carry", "territory footprint",
+        "independent pet specialty", "pet specialty segment",
+        "pet speciality segment",
+        # who they sell to - two distinct phrases at most
+        "independent pet retailers", "pet specialty retailers"],
     "manufacturer": [
         "we manufacture", "our kitchen", "our manufacturing facility",
         "manufacturing facility", "manufactured in", "co-packer",
@@ -676,7 +684,8 @@ COMPANY_TYPE_MARKERS: dict[str, list[str]] = {
         # direct-to-consumer storefront language
         "add to cart", "free shipping on orders", "orders ship within",
         "shop all", "shop the collection", "our story", "new arrivals",
-        "join our pack", "learn more about these products"],
+        "join our pack", "learn more about these products",
+        "carry our products", "our recipes", "veterinarian formulated"],
     # software sold to pet brands or retailers - never a buyer of product
     "software_or_service_vendor": [
         "book a demo", "request a demo", "free trial", "start your free trial",
@@ -865,7 +874,10 @@ CONFIG: dict = {
                                  "pet_service_provider", "manufacturer",
                                  "brand_owner", "software_or_service_vendor",
                                  "b2b_marketplace"],
-        "unknown_company_type": "allow",
+        # Pet brands vastly outnumber pet distributors and many have a
+        # "wholesale" page, so a company must show distributor evidence. A
+        # real distributor with a weak BUYING signal still qualifies.
+        "unknown_company_type": "reject",
         "company_type_min_markers": 2,
         "allowed_countries": ["US"],
         "min_country_confidence": 0.6,
