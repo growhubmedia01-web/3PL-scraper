@@ -35,8 +35,8 @@ PARTS = [
 HEADER = """-- =====================================================================
 --  ALL-IN-ONE MIGRATION
 --  Configurable B2B Intent Intelligence Platform
---  Default service: powersports_aftermarket_sourcing
---  Also seeded (active): pet_specialty_food_treats_supplements
+--  Default service: pet_specialty_food_treats_supplements
+--  Also seeded (active): powersports_aftermarket_sourcing
 --  Legacy service retained (inactive): 3pl
 --
 --  Paste this entire file into the Supabase SQL Editor and press Run.

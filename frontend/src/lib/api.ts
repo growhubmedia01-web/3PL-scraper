@@ -7,7 +7,7 @@ const BASE = import.meta.env.VITE_API_BASE_URL || ''
 /** The service this dashboard shows. The legacy '3pl' service is retained
  *  in the database; set VITE_SERVICE_SLUG=3pl to view it. */
 export const SERVICE: string =
-  import.meta.env.VITE_SERVICE_SLUG || 'powersports_aftermarket_sourcing'
+  import.meta.env.VITE_SERVICE_SLUG || 'pet_specialty_food_treats_supplements'
 
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 1000 // doubles each attempt: 1s, 2s, 4s

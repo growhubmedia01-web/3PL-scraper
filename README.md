@@ -1,15 +1,15 @@
 # Configurable B2B Intent Intelligence & Lead Discovery Platform
 
-**Default service: Powersports Aftermarket Product Sourcing** - finds mid-market
-US wholesale distributors of aftermarket powersports parts and accessories,
-detects public evidence that they are buying, and extracts which products.
-See [docs/POWERSPORTS_SOURCING.md](docs/POWERSPORTS_SOURCING.md).
-
-**Next service: Pet Specialty Food, Treats & Supplements** (migration 010) -
-mid-market US pet specialty distributors buying, onboarding or expanding pet
-food, treats, chews and supplements. Seeded alongside powersports; becomes the
-default when `DEFAULT_SERVICE_SLUG` / `VITE_SERVICE_SLUG` are switched. See
+**Default service: Pet Specialty Food, Treats & Supplements** - finds
+mid-market US pet specialty distributors and wholesalers, detects public
+evidence that they are buying, onboarding or expanding pet food, treats, chews
+and supplements, and extracts which products. See
 [docs/PET_SPECIALTY_SOURCING.md](docs/PET_SPECIALTY_SOURCING.md).
+
+The previous **Powersports Aftermarket Product Sourcing** service is retained
+(active, every lead and its history intact; view it with
+`DEFAULT_SERVICE_SLUG` / `VITE_SERVICE_SLUG=powersports_aftermarket_sourcing`).
+See [docs/POWERSPORTS_SOURCING.md](docs/POWERSPORTS_SOURCING.md).
 
 The original **Third-Party Logistics (3PL)** service is retained in the
 database (inactive, history intact); set `DEFAULT_SERVICE_SLUG=3pl` and
@@ -104,11 +104,11 @@ editor and run in order:
 2. `backend/migrations/002_rls.sql` — row-level security policies
 3. `backend/migrations/003_seed_3pl.sql` — the legacy 3PL service configuration
 4. `004`–`006` — segment broadening, the 3PL query library, LinkedIn columns
-5. `backend/migrations/007_powersports_aftermarket_sourcing.sql` — the default
+5. `backend/migrations/007_powersports_aftermarket_sourcing.sql` — the
    powersports service (additive; sets 3PL inactive, deletes nothing)
 6. `008_source_types.sql`, `009_product_interest_attributes.sql` — schema
 7. `backend/migrations/010_pet_specialty_food_treats_supplements.sql` — the
-   pet specialty service (additive; changes no other service)
+   default pet specialty service (additive; changes no other service)
 
 Or paste `ALL_IN_ONE.sql`, which concatenates all of them.
 

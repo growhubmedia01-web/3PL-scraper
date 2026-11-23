@@ -30,7 +30,7 @@ Everything works except Postgres-specific RLS.
 
 ## Common problems
 
-**"Service 'powersports_aftermarket_sourcing' not found"** — the seed didn't run. `python -m scripts.seed` (or `POST /api/admin/seed-service?slug=powersports_aftermarket_sourcing`). The same applies to the legacy `3pl` service.
+**"Service 'pet_specialty_food_treats_supplements' not found"** — the seed didn't run. `python -m scripts.seed` (or `POST /api/admin/seed-service?slug=powersports_aftermarket_sourcing`). The same applies to the legacy `3pl` service.
 
 **Discovery returns 0 companies** — check `/api/stats/health` for
 `search.ok: false`, then verify your search key. Also normal if every result
@@ -93,7 +93,7 @@ select (select sum(cost_usd) from api_usage)
 
 Only add a second service once HOT precision is acceptable.
 
-## Powersports service (default since migration 007)
+## Powersports service (migration 007; default until 010)
 
 - Apply: paste `backend/migrations/007_powersports_aftermarket_sourcing.sql`
   into the Supabase SQL editor (additive, idempotent; sets `3pl` inactive,
@@ -106,7 +106,7 @@ Only add a second service once HOT precision is acceptable.
   ("First controlled pilot"). The dashboard's "Run discovery pilot" button is
   hard-limited to tier 1, 5 queries, 20 companies.
 
-## Pet specialty service (migration 010)
+## Pet specialty service (migration 010, the default)
 
 See [PET_SPECIALTY_SOURCING.md](PET_SPECIALTY_SOURCING.md). To switch:
 apply 009 then 010 in Supabase, deploy, set `DEFAULT_SERVICE_SLUG` and

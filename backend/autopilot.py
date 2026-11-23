@@ -21,7 +21,7 @@ import sys
 import time
 import requests
 
-DEFAULT_SERVICE = "powersports_aftermarket_sourcing"
+DEFAULT_SERVICE = "pet_specialty_food_treats_supplements"
 
 
 def log(msg: str):

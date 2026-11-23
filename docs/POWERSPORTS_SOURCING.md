@@ -1,7 +1,9 @@
 # Powersports Aftermarket Product Sourcing
 
-**The default service** (slug `powersports_aftermarket_sourcing`, migration
-`007`). It replaces the original Third-Party Logistics (3PL) service *as the
+**The previous default service** (slug `powersports_aftermarket_sourcing`,
+migration `007`). Since migration 010 the default is the pet specialty service
+([PET_SPECIALTY_SOURCING.md](PET_SPECIALTY_SOURCING.md)); this service stays
+active with all its leads. It replaces the original Third-Party Logistics (3PL) service *as the
 default*. The 3PL service, its configuration and all its historical data
 stay in the database, marked `inactive`. Nothing was deleted.
 

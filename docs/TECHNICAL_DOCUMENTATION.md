@@ -270,7 +270,7 @@ All settings are environment-driven via `pydantic-settings`, loaded from `backen
 - **Infra**: `redis_url`, `sentry_dsn`.
 - **Scoring defaults**: `score_weight_deterministic/ai/evidence`, `decision_maker_threshold`, `ai_analysis_min_raw_score` — all overridable per-service via the `services.config` JSONB.
 - **Cost guards**: as above.
-- **`default_service_slug`**: `powersports_aftermarket_sourcing` (was `3pl`); the product retargets by pointing this elsewhere and seeding a new service's rows. Migration 007 added `company_facts`, `product_interests` and company type/size/HQ columns, plus generic config keys (signal dimensions, signal rules, qualification, taxonomy) documented in `docs/POWERSPORTS_SOURCING.md`.
+- **`default_service_slug`**: `pet_specialty_food_treats_supplements` (was `powersports_aftermarket_sourcing`, before that `3pl`); the product retargets by pointing this elsewhere and seeding a new service's rows. Migration 007 added `company_facts`, `product_interests` and company type/size/HQ columns, plus generic config keys (signal dimensions, signal rules, qualification, taxonomy) documented in `docs/POWERSPORTS_SOURCING.md`.
 
 ---
 

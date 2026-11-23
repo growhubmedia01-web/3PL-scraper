@@ -1,6 +1,7 @@
 # Pet Specialty Food, Treats & Supplements
 
-Slug `pet_specialty_food_treats_supplements`, migration `010`. The source of
+**The default service.** Slug `pet_specialty_food_treats_supplements`,
+migration `010`. The source of
 truth is `backend/scripts/services/pet_specialty_food_treats_supplements.py`.
 The SQL is generated from it:
 
@@ -116,7 +117,7 @@ publicly disclosed."*
 No LinkedIn scraping, no email discovery and no personal contact
 enrichment. The CSV export has no email column.
 
-## Switching the default to this service
+## Switching the default to this service (done)
 
 1. Run `009_product_interest_attributes.sql` and then
    `010_pet_specialty_food_treats_supplements.sql` in the Supabase SQL
