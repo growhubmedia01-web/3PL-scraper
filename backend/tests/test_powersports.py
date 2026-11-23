@@ -22,7 +22,7 @@ from app.engine.extractor import ExtractedPage, classify_page_type
 from app.engine.service_config import build_config
 from app.engine.signals import detect_signals, persist_signals
 from app.models import (
-    Company, CompanyFact, ProductInterest, ServiceOpportunity, Signal, Source,
+    Company, CompanyFact, DiscoveryQuery, ProductInterest, ServiceOpportunity, Signal, Source,
 )
 from scripts.services import powersports_aftermarket_sourcing as ps
 
@@ -742,3 +742,55 @@ def test_15b_csv_exports_product_interest_without_email(db, ps_config, client):
     assert row["HQ State"] == "TX"
     assert "ridgelinesupply.com/news/utv" in row["Product Evidence URLs"]
     assert row["Product Demand Summary"]
+
+
+def test_15c_dashboard_counts_only_this_services_companies(db, ps_config, client):
+    """Companies are shared across services; the dashboard's company cards
+    must not count legacy 3PL history."""
+    _scored_lead(db, ps_config)                          # a powersports lead
+    legacy = make_company(db, "old3plbrand.com")         # 3PL-era company
+    legacy.discovered_via = "search:shopify skincare brands"
+    legacy.status = "rejected"
+    found = make_company(db, "newpartsdist.com")         # found by a ps query
+    query = db.execute(select(DiscoveryQuery).where(
+        DiscoveryQuery.service_id == ps_config.id)).scalars().first()
+    found.discovered_via = f"search:{query.query}"
+    db.commit()
+
+    stats = client.get("/api/stats", params={"service": ps.SLUG}).json()
+    assert stats["total_companies"] == 2
+    assert stats["companies_rejected"] == 0
+    assert stats["total_opportunities"] == 1
+
+
+@pytest.mark.parametrize("headcount,qualifies", [
+    ("180 employees", True),            # mid-market
+    ("1,200 employees", False),         # large
+    ("12 employees", False),            # small
+])
+def test_11d_only_mid_market_size_qualifies(db, ps_config, headcount, qualifies):
+    from app.engine.pipeline import process_company
+    company = make_company(db, "ridgelinesupply.com")
+    pages = [page(p.url, p.text.replace("180 employees", headcount), p.title,
+                  page_type=p.page_type) for p in distributor_pages()]
+    store_sources(db, company, pages)
+    company.status, company.last_crawled_at = "classified", datetime.now(timezone.utc)
+    result = process_company(db, company, ps_config, skip_external=True,
+                             allow_ai=False)
+    assert result.rejected is not qualifies, result.reason
+    if not qualifies:
+        assert company.status == "rejected"
+        assert "size" in company.rejection_reason
+
+
+def test_11e_unknown_size_still_qualifies(db, ps_config):
+    from app.engine.pipeline import process_company
+    company = make_company(db, "ridgelinesupply.com")
+    pages = [page(p.url, p.text.replace("of 180 employees ", ""), p.title,
+                  page_type=p.page_type) for p in distributor_pages()]
+    store_sources(db, company, pages)
+    company.status, company.last_crawled_at = "classified", datetime.now(timezone.utc)
+    result = process_company(db, company, ps_config, skip_external=True,
+                             allow_ai=False)
+    assert not result.rejected, result.reason
+    assert company.employee_band in (None, "unknown")

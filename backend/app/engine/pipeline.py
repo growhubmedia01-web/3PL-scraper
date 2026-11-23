@@ -124,6 +124,18 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
         except Exception as exc:
             log.warning("Profile extraction failed for %s: %s",
                         company.domain, exc)
+        # Size gate: needs the profile above, so it runs after classify().
+        # Only a size the company itself states can reject; unknown passes.
+        excluded_bands = set((config.raw_config.get("qualification") or {})
+                             .get("excluded_employee_bands") or [])
+        if (classification.relevant and company.employee_band
+                and company.employee_band in excluded_bands):
+            classification.relevant = False
+            classification.rejection_reason = (
+                f"company size '{company.employee_band}' is outside the "
+                f"target size range")
+            company.status = "rejected"
+            company.rejection_reason = classification.rejection_reason
         if not classification.relevant:
             result.rejected = True
             result.reason = classification.rejection_reason

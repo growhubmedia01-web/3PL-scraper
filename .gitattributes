@@ -1,0 +1,3 @@
+# Migration SQL is pasted into the Supabase editor and checked byte-for-byte
+# by tests: always LF, regardless of core.autocrlf.
+*.sql text eol=lf

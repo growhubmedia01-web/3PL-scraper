@@ -669,6 +669,10 @@ CONFIG: dict = {
         # evidence becomes a lead flagged "location unverified" (its
         # country_confidence stays below min_country_confidence).
         "allow_unverified_location_tlds": ["com", "net", "us", "org", "biz"],
+        # Mid-market only (50-500 employees). A company that STATES a size
+        # outside that range is rejected; unknown size is kept, since most
+        # distributor sites never publish headcount.
+        "excluded_employee_bands": ["large", "small", "micro"],
         "required_industry": "powersports",
         # One powersports marker is enough: the lead list should include
         # weak-signal distributors, ranked LOW, rather than drop them.
