@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import LeadDetail from './pages/LeadDetail'
@@ -11,6 +12,7 @@ const NAV = [
 
 export default function App() {
   const labels = useLabels()
+  useEffect(() => { document.title = labels.title }, [labels.title])
   return (
     <div className="min-h-screen bg-ink-50 text-ink-900">
       <header className="bg-white border-b border-ink-200 sticky top-0 z-20">
