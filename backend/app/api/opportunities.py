@@ -180,7 +180,8 @@ def list_opportunities(
 
     stmt = (select(ServiceOpportunity, Company)
             .join(Company, Company.id == ServiceOpportunity.company_id)
-            .where(ServiceOpportunity.service_id == service.id))
+            .where(ServiceOpportunity.service_id == service.id,
+                   Company.status != "rejected"))   # re-analysed and rejected
 
     if q:
         like = f"%{q.lower()}%"

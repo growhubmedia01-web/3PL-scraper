@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, literal, or_, select
+from sqlalchemy import and_, func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -27,7 +27,12 @@ def dashboard(service: str = Query(settings.default_service_slug),
         raise HTTPException(404, f"Service '{service}' not found")
 
     stats = DashboardStats()
-    opp_where = ServiceOpportunity.service_id == svc.id
+    # A lead whose company was later re-analysed and rejected is kept in the
+    # table (history) but no longer counted or listed.
+    opp_where = and_(
+        ServiceOpportunity.service_id == svc.id,
+        ServiceOpportunity.company_id.not_in(
+            select(Company.id).where(Company.status == "rejected")))
 
     # Companies are shared by every service (one row per domain), so the
     # company-level cards are scoped to this service: companies its own

@@ -569,3 +569,26 @@ def test_20b_uk_region_is_foreign_evidence(db, pet_config):
         "Moorland Raw")], pet_config.excluded_business_types, config=pet_config)
     assert result.country == "GB"
     assert not result.relevant
+
+
+# ---------------------------------------------------------------------
+# TEST 21 - a lead whose company is later re-analysed and rejected leaves
+# the lead list, the stats and the CSV (the row itself is kept)
+# ---------------------------------------------------------------------
+def test_21_later_rejected_company_is_not_listed(db, pet_config, client):
+    from app.models import ServiceOpportunity
+    company = make_company(db, DOMAIN, "Harbor Pet Supply")
+    _, _, interests, score = analyse(db, pet_config, company, distributor_pages())
+    scoring.upsert_opportunity(db, company, pet_config, score,
+                               evidenced_needs=product_interest.buying_categories(interests))
+    db.commit()
+    assert client.get(f"/api/services/{pet.SLUG}/opportunities").json()["total"] == 1
+
+    company.status, company.rejection_reason = "rejected", "brand, not a distributor"
+    db.commit()
+    assert client.get(f"/api/services/{pet.SLUG}/opportunities").json()["total"] == 0
+    assert client.get("/api/stats", params={"service": pet.SLUG}).json()["total_opportunities"] == 0
+    rows = list(csv.DictReader(io.StringIO(
+        client.get("/api/export", params={"service": pet.SLUG}).text)))
+    assert rows == []
+    assert db.query(ServiceOpportunity).filter_by(company_id=company.id).count() == 1

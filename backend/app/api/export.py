@@ -76,7 +76,8 @@ def export_csv(
 
     stmt = (select(ServiceOpportunity, Company)
             .join(Company, Company.id == ServiceOpportunity.company_id)
-            .where(ServiceOpportunity.service_id == svc.id))
+            .where(ServiceOpportunity.service_id == svc.id,
+                   Company.status != "rejected"))   # re-analysed and rejected
     if intent:
         stmt = stmt.where(ServiceOpportunity.intent_level == intent.upper())
     if country:
