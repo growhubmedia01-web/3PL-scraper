@@ -23,6 +23,8 @@ from app.utils.text import best_sentence, contains_phrase
 
 log = logging.getLogger(__name__)
 
+# Legacy (3PL) defaults, kept for backwards compatibility. Services declare
+# their own via config['signal_page_affinity'].
 # Page types that make a keyword hit meaningful. A "warehouse manager" phrase
 # on a careers page is a hiring signal; the same phrase in a blog post is not.
 DEFAULT_PAGE_AFFINITY: dict[str, set[str]] = {
@@ -68,7 +70,13 @@ def _page_source_map(db: Session, company: Company) -> dict[str, Source]:
 
 def _published_date(page: ExtractedPage, source: Source | None) -> datetime | None:
     if source and source.published_at:
-        return source.published_at
+        value = source.published_at
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+    if getattr(page, "published_at", None):
+        from app.engine.crawler import parse_date
+        parsed = parse_date(page.published_at)
+        if parsed:
+            return parsed
     head = (page.text or "")[:2000]
     for pattern in DATE_PATTERNS:
         match = pattern.search(head)
@@ -93,6 +101,44 @@ def _affinity_strength(signal_type: str, page_type: str,
     return ON_TOPIC_STRENGTH if page_type in affinity else OFF_TOPIC_STRENGTH
 
 
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\s+[•|]\s+")
+
+
+def sentences_with(text: str, phrase: str) -> list[str]:
+    return [s.strip() for s in _SENTENCE_SPLIT.split(text or "")
+            if contains_phrase(s, phrase)]
+
+
+def rule_allows(signal_type: str, page: ExtractedPage, sentence: str,
+                config: ServiceConfig) -> bool:
+    """Apply a service's polarity rules to one keyword hit.
+
+    Keyword matching alone cannot tell "become a supplier" from "become a
+    dealer", or "we are seeking new suppliers" from "we are seeking a US
+    distributor". The rules (all optional, all from config):
+      exclude_page_types       hit ignored on these page types
+      require_page_types       hit only counts on these page types
+      suppress_phrases         hit ignored if the sentence or page title
+                               contains any of these
+      require_context_phrases  sentence must also contain one of these
+    """
+    rule = config.signal_rules.get(signal_type)
+    if not rule:
+        return True
+    if page.page_type in set(rule.get("exclude_page_types") or []):
+        return False
+    required_types = rule.get("require_page_types")
+    if required_types and page.page_type not in set(required_types):
+        return False
+    scope = f"{sentence} {page.title or ''}".lower()
+    if any(contains_phrase(scope, p) for p in rule.get("suppress_phrases") or []):
+        return False
+    context = rule.get("require_context_phrases")
+    if context and not any(contains_phrase(sentence.lower(), p) for p in context):
+        return False
+    return True
+
+
 def detect_signals(db: Session, company: Company, pages: list[ExtractedPage],
                    config: ServiceConfig,
                    external_pages: list[ExtractedPage] | None = None
@@ -101,6 +147,7 @@ def detect_signals(db: Session, company: Company, pages: list[ExtractedPage],
     all_pages = list(pages) + list(external_pages or [])
     sources = _page_source_map(db, company)
     found: dict[str, DetectedSignal] = {}
+    undated_factor = config.undated_confidence_factor
 
     def record(signal_type: str, evidence: str, description: str,
                confidence: float, source_id: str | None,
@@ -135,7 +182,8 @@ def detect_signals(db: Session, company: Company, pages: list[ExtractedPage],
     for page in all_pages:
         source = sources.get(page.url)
         source_id = source.id if source else None
-        page_date = _published_date(page, source) or now
+        dated = _published_date(page, source)
+        page_date = dated or now
         haystack = page.searchable
         if not haystack:
             continue
@@ -148,11 +196,27 @@ def detect_signals(db: Session, company: Company, pages: list[ExtractedPage],
             if not contains_phrase(haystack, keyword.keyword):
                 continue
 
-            evidence = best_sentence(page.text or page.title, keyword.keyword) \
-                or f'Matched "{keyword.keyword}" on {page.url}'
+            candidates = sentences_with(page.text or "", keyword.keyword)
+            if not candidates and contains_phrase(
+                    f"{page.title} {page.meta_description}".lower(),
+                    keyword.keyword):
+                candidates = [page.title or page.meta_description]
+            if not candidates:
+                candidates = [best_sentence(page.text or page.title,
+                                            keyword.keyword)
+                              or f'Matched "{keyword.keyword}" on {page.url}']
+            evidence = next(
+                (c for c in candidates
+                 if rule_allows(keyword.signal_type, page, c, config)), None)
+            if evidence is None:
+                continue          # every occurrence was suppressed by a rule
+            evidence = evidence[:300]
+
             strength = _affinity_strength(keyword.signal_type,
                                           page.page_type, config)
             confidence = min(0.95, 0.45 + keyword.weight * 0.4)
+            if dated is None and config.dimension_of(keyword.signal_type) == "intent":
+                confidence *= undated_factor
             signal_def = config.signals[keyword.signal_type]
 
             record(keyword.signal_type, evidence, signal_def.signal_name,
@@ -160,23 +224,29 @@ def detect_signals(db: Session, company: Company, pages: list[ExtractedPage],
 
     # ---- 3. Structured job-posting boost -------------------------------
     # A careers page that lists a matching role is much stronger evidence than
-    # the same phrase appearing in prose.
+    # the same phrase appearing in prose. Which signals count as hiring comes
+    # from config (keywords in the "hiring" category), never from code.
+    hiring_types = config.hiring_signal_types
     for page in all_pages:
         if page.page_type not in ("careers", "job"):
             continue
         source = sources.get(page.url)
-        for signal_type in ("operations_hiring", "fulfillment_hiring"):
+        for signal_type in hiring_types:
             if signal_type not in config.signals:
                 continue
             for keyword in config.keywords_for(signal_type):
-                if contains_phrase(page.searchable, keyword.keyword):
-                    evidence = best_sentence(page.text, keyword.keyword) \
-                        or f'Open role matching "{keyword.keyword}"'
-                    record(signal_type, evidence,
-                           config.signals[signal_type].signal_name,
-                           0.92, source.id if source else None,
-                           _published_date(page, source) or now, 1.0)
-                    break
+                if not contains_phrase(page.searchable, keyword.keyword):
+                    continue
+                sentence = (best_sentence(page.text, keyword.keyword)
+                            or page.title or "")
+                if not rule_allows(signal_type, page, sentence, config):
+                    continue
+                evidence = sentence or f'Open role matching "{keyword.keyword}"'
+                record(signal_type, evidence,
+                       config.signals[signal_type].signal_name,
+                       0.92, source.id if source else None,
+                       _published_date(page, source) or now, 1.0)
+                break
 
     return list(found.values())
 

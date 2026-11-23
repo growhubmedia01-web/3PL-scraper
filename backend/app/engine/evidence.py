@@ -39,6 +39,8 @@ ATS_ENDPOINTS: list[tuple[str, str]] = [
     ("recruitee", "https://{slug}.recruitee.com/api/offers/"),
 ]
 
+# Legacy (3PL) defaults. A service overrides these with
+# config['external_query_templates'] = [[source_type, template, mode], ...].
 EXTERNAL_QUERY_TEMPLATES: list[tuple[str, str]] = [
     ("funding", '"{name}" (raises OR raised OR "funding round" OR "seed round" OR "Series A")'),
     ("news", '"{name}" ({domain}) news'),
@@ -58,6 +60,8 @@ class ExternalEvidence:
     def to_page(self) -> ExtractedPage:
         page = ExtractedPage(url=self.url, title=self.title, text=self.text)
         page.page_type = self.source_type
+        if self.published_at:
+            page.published_at = self.published_at.isoformat()
         return page
 
 
@@ -202,8 +206,11 @@ def fetch_sec_form_d(company: Company, max_results: int = 3) -> list[ExternalEvi
 
 
 def search_external_signals(db: Session, company: Company,
-                            max_per_query: int = 5) -> list[ExternalEvidence]:
-    """SERP/news lookups for funding, expansion, launches, crowdfunding."""
+                            max_per_query: int = 5,
+                            templates: list[tuple] | None = None
+                            ) -> list[ExternalEvidence]:
+    """SERP/news lookups. Templates come from service config when given,
+    otherwise the legacy funding/expansion/launch/crowdfunding set."""
     search = SearchService(db)
     if not search.has_provider:
         log.info("No search provider configured; skipping external evidence.")
@@ -213,9 +220,13 @@ def search_external_signals(db: Session, company: Company,
     out: list[ExternalEvidence] = []
     seen: set[str] = set()
 
-    for source_type, template in EXTERNAL_QUERY_TEMPLATES:
+    rows = templates or [
+        (t, q, "news" if t in ("news", "funding", "press_release") else "web")
+        for t, q in EXTERNAL_QUERY_TEMPLATES]
+    for row in rows:
+        source_type, template = row[0], row[1]
+        mode = row[2] if len(row) > 2 else "web"
         query = template.format(name=name, domain=company.domain)
-        mode = "news" if source_type in ("news", "funding", "press_release") else "web"
         try:
             results = search.search(query, country=company.country,
                                     num=max_per_query, mode=mode)
@@ -265,19 +276,70 @@ def _parse_relative_date(value: str | None) -> datetime | None:
         return None
 
 
-def collect_external_evidence(db: Session, company: Company
+ARTICLE_TIMEOUT_SECONDS = 8.0
+
+
+def fetch_article(item: ExternalEvidence) -> ExternalEvidence:
+    """Replace a search snippet with the article it points at, when robots.txt
+    allows it. The article - not the snippet - is the evidence. Any failure
+    keeps the snippet, so this can only add information."""
+    from app.engine.crawler import parse_date
+    from app.engine.extractor import extract
+    from app.utils.robots import can_fetch
+
+    try:
+        if not can_fetch(item.url):
+            return item
+        with httpx.Client(timeout=ARTICLE_TIMEOUT_SECONDS, follow_redirects=True,
+                          headers={"User-Agent": settings.crawler_user_agent}) as client:
+            resp = client.get(item.url)
+        if resp.status_code != 200 or "html" not in resp.headers.get(
+                "content-type", ""):
+            return item
+        page = extract(resp.text, item.url, resp.status_code)
+    except Exception as exc:
+        log.debug("Article fetch failed for %s: %s", item.url, exc)
+        return item
+    if len(page.text or "") < 200:
+        return item
+    item.text = clean_text(page.text)[:20_000]
+    item.title = page.title or item.title
+    item.published_at = parse_date(page.published_at) or item.published_at
+    return item
+
+
+FETCHERS = {"ats": fetch_ats_jobs, "sec_form_d": fetch_sec_form_d}
+
+
+def collect_external_evidence(db: Session, company: Company, config=None
                               ) -> list[ExtractedPage]:
     """Run every external source, persist results, return them as pages the
-    signal engine can consume."""
+    signal engine can consume. `config` (ServiceConfig) selects fetchers,
+    query templates and article fetching; without it, legacy behaviour."""
     evidence: list[ExternalEvidence] = []
-    for fetcher in (fetch_ats_jobs, fetch_sec_form_d):
+    fetcher_names = (config.external_fetchers if config is not None
+                     and config.external_fetchers is not None
+                     else list(FETCHERS))
+    for fetcher_name in fetcher_names:
+        fetcher = FETCHERS.get(fetcher_name)
+        if fetcher is None:
+            log.warning("Unknown external fetcher '%s' in config", fetcher_name)
+            continue
         try:
             evidence.extend(fetcher(company))
         except Exception as exc:
             log.warning("%s failed for %s: %s", fetcher.__name__,
                         company.domain, exc)
     try:
-        evidence.extend(search_external_signals(db, company))
+        searched = search_external_signals(
+            db, company,
+            templates=config.external_query_templates if config is not None else None)
+        article_budget = config.fetch_external_articles if config is not None else 0
+        for item in searched:
+            if article_budget > 0 and item.source_type in ("news", "press_release"):
+                item = fetch_article(item)
+                article_budget -= 1
+            evidence.append(item)
     except Exception as exc:
         log.warning("External search failed for %s: %s", company.domain, exc)
 

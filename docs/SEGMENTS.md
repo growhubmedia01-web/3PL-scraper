@@ -1,5 +1,7 @@
 # Who this finds (after migration 004)
 
+> **Legacy service document.** This page describes the original Third-Party Logistics (3PL) service, which is retained in the database as `inactive`. The default service is now Powersports Aftermarket Product Sourcing - see [POWERSPORTS_SOURCING.md](POWERSPORTS_SOURCING.md).
+
 ## The change
 
 The qualification gate used to require **ecommerce AND physical products**.

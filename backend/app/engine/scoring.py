@@ -28,8 +28,26 @@ SOURCE_TYPE_QUALITY: dict[str, float] = {
     "registry": 1.0, "funding": 1.0, "press_release": 0.9, "job": 0.9,
     "news": 0.8, "careers": 0.8, "shipping": 0.8, "returns": 0.7,
     "about": 0.7, "crowdfunding": 0.8, "website": 0.6, "directory": 0.5,
-    "social": 0.4, "other": 0.3,
+    "social": 0.4, "other": 0.3, "supplier": 0.8, "brands": 0.6,
+    "dealer": 0.5,
 }
+
+
+def fit_factor(company: Company, config: ServiceConfig
+               ) -> tuple[float, list[str]]:
+    """Multiplier for how well the company matches the service's target
+    profile (size band, company type). 1.0 when the service configures
+    none - legacy services are unaffected."""
+    multipliers = config.fit_multipliers
+    if not multipliers:
+        return 1.0, []
+    factor, notes = 1.0, []
+    for attribute, table in multipliers.items():
+        value = getattr(company, attribute, None) or "unknown"
+        m = float(table.get(value, table.get("default", 1.0)))
+        factor *= m
+        notes.append(f"{attribute}={value} x{m:.2f}")
+    return factor, notes
 
 
 @dataclass
@@ -180,6 +198,27 @@ def calculate(db: Session, company: Company, signals: list[Signal],
     if missing:
         final = min(final, 45.0)
 
+    # 007: company fit (size band x company type) as a multiplier, so a large
+    # generic company cannot outrank a mid-sized one with stronger evidence.
+    fit, fit_notes = fit_factor(company, config)
+    pre_fit = final
+    final = final * fit
+
+    # 007: a dimension cap - e.g. no live intent signal means fit evidence
+    # alone can lift a company to at most POSSIBLE.
+    capped_dimensions = []
+    now_ = now or datetime.now(timezone.utc)
+    for dimension, cap in config.dimension_caps.items():
+        live = any(
+            config.dimension_of(sig.signal_type) == dimension
+            and sig.signal_type in config.signals
+            and config.signals[sig.signal_type].weight > 0
+            and effective_strength(sig, config.signals[sig.signal_type], now_) > 0
+            for sig in signals)
+        if not live and final > cap:
+            final = cap
+            capped_dimensions.append((dimension, cap))
+
     final = round(max(0.0, min(100.0, final)), 2)
 
     lines.append(ev_line)
@@ -202,6 +241,17 @@ def calculate(db: Session, company: Company, signals: list[Signal],
             label="Capped: required signals missing", signal_type=None,
             weight=0, multiplier=0, points=0,
             detail=f"Missing {', '.join(missing)} - score capped at 45"))
+    if fit_notes:
+        lines.append(ScoreLine(
+            label="Company fit multiplier", signal_type=None,
+            weight=0, multiplier=fit, points=round(pre_fit * fit - pre_fit, 2),
+            detail=f"{'; '.join(fit_notes)} -> {pre_fit:.1f} x {fit:.2f}"))
+    for dimension, cap in capped_dimensions:
+        lines.append(ScoreLine(
+            label=f"Capped: no live {dimension} signal", signal_type=None,
+            weight=0, multiplier=0, points=0,
+            detail=f"No unexpired {dimension}-dimension signal - "
+                   f"score capped at {cap:.0f}"))
 
     return ScoreResult(
         score=final, raw_score=round(raw, 2),
@@ -214,9 +264,14 @@ def calculate(db: Session, company: Company, signals: list[Signal],
 
 
 def upsert_opportunity(db: Session, company: Company, config: ServiceConfig,
-                       result: ScoreResult, ai_analysis: dict | None = None
+                       result: ScoreResult, ai_analysis: dict | None = None,
+                       evidenced_needs: list[str] | None = None
                        ) -> ServiceOpportunity:
-    """Unique on (company_id, service_id) - §19, §51."""
+    """Unique on (company_id, service_id) - §19, §51.
+
+    `evidenced_needs`, when given, replaces the AI's likely_services as the
+    stored likely_need - deterministic, source-backed categories beat a
+    model's paraphrase (007)."""
     opportunity = db.execute(
         select(ServiceOpportunity).where(
             ServiceOpportunity.company_id == company.id,
@@ -249,6 +304,9 @@ def upsert_opportunity(db: Session, company: Company, config: ServiceConfig,
         opportunity.reasoning = (
             "Deterministic assessment only (no AI analysis run). "
             f"Strongest signals: {', '.join(top) if top else 'none'}.")
+
+    if evidenced_needs is not None:
+        opportunity.likely_need = evidenced_needs
 
     db.flush()
     return opportunity

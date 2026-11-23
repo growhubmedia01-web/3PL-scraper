@@ -141,6 +141,141 @@ class ServiceConfig:
             f"supplied evidence and never invent facts."
         )
 
+    # ---- generic extensions (007). All optional; absent keys keep the
+    # ---- pre-007 behaviour, so legacy services are unaffected.
+    @property
+    def signal_dimensions(self) -> dict[str, str]:
+        """signal_type -> 'intent' | 'fit' | 'negative'. Unlisted = intent."""
+        return dict(self.raw_config.get("signal_dimensions") or {})
+
+    def dimension_of(self, signal_type: str) -> str:
+        return self.signal_dimensions.get(signal_type, "intent")
+
+    @property
+    def dimension_caps(self) -> dict[str, float]:
+        """{'intent': 45} caps the score when no live signal of that
+        dimension exists - fit alone can never make a lead HOT."""
+        return {k: float(v) for k, v in
+                (self.raw_config.get("dimension_caps") or {}).items()}
+
+    @property
+    def signal_rules(self) -> dict[str, dict]:
+        """Per-signal polarity rules evaluated on the matched sentence:
+        suppress_phrases, exclude_page_types, require_page_types,
+        require_context_phrases."""
+        return dict(self.raw_config.get("signal_rules") or {})
+
+    @property
+    def undated_confidence_factor(self) -> float:
+        return float(self.raw_config.get("undated_confidence_factor", 1.0))
+
+    @property
+    def hiring_signal_types(self) -> list[str]:
+        explicit = self.raw_config.get("hiring_signal_types")
+        if explicit is not None:
+            return list(explicit)
+        return sorted({k.signal_type for k in self.keywords
+                       if k.category == "hiring" and k.signal_type})
+
+    @property
+    def qualification(self) -> dict:
+        return dict(self.raw_config.get("qualification") or {})
+
+    @property
+    def company_type_markers(self) -> dict[str, list[str]]:
+        return dict(self.raw_config.get("company_type_markers") or {})
+
+    @property
+    def industry_keywords(self) -> dict[str, list[str]]:
+        return dict(self.raw_config.get("industry_keywords") or {})
+
+    @property
+    def size_bands(self) -> list[dict]:
+        return list(self.raw_config.get("size_bands") or [
+            {"band": "micro", "min": 1, "max": 10},
+            {"band": "small", "min": 11, "max": 49},
+            {"band": "mid_market", "min": 50, "max": 500},
+            {"band": "large", "min": 501, "max": None},
+        ])
+
+    @property
+    def fit_multipliers(self) -> dict[str, dict[str, float]]:
+        """{'employee_band': {...}, 'company_type': {...}} -> score factors."""
+        return dict(self.raw_config.get("fit_multipliers") or {})
+
+    @property
+    def product_taxonomy(self) -> dict[str, dict[str, list[str]]]:
+        """{category: {subcategory: [terms]}}."""
+        return dict(self.raw_config.get("product_taxonomy") or {})
+
+    @property
+    def vehicle_segments(self) -> dict[str, list[str]]:
+        return dict(self.raw_config.get("vehicle_segments") or {})
+
+    @property
+    def vehicle_platforms(self) -> list[str]:
+        return list(self.raw_config.get("vehicle_platforms") or [])
+
+    @property
+    def interest_type_by_signal(self) -> dict[str, str]:
+        return dict(self.raw_config.get("interest_type_by_signal") or {})
+
+    @property
+    def adjacent_categories(self) -> dict[str, list[str]]:
+        return dict(self.raw_config.get("adjacent_categories") or {})
+
+    @property
+    def brand_patterns(self) -> list[str]:
+        return list(self.raw_config.get("brand_patterns") or [])
+
+    @property
+    def no_product_demand_message(self) -> str:
+        return self.raw_config.get("no_product_demand_message") or (
+            "Specific product demand not publicly disclosed.")
+
+    @property
+    def crawl_priority_paths(self) -> list[tuple[str, str]] | None:
+        paths = self.raw_config.get("crawl_priority_paths")
+        return [tuple(p) for p in paths] if paths else None
+
+    @property
+    def crawl_max_pages(self) -> int | None:
+        value = self.raw_config.get("crawl_max_pages")
+        return int(value) if value else None
+
+    @property
+    def external_query_templates(self) -> list[tuple[str, str, str]] | None:
+        rows = self.raw_config.get("external_query_templates")
+        return [tuple(r) for r in rows] if rows else None
+
+    @property
+    def external_fetchers(self) -> list[str] | None:
+        value = self.raw_config.get("external_fetchers")
+        return list(value) if value is not None else None
+
+    @property
+    def fetch_external_articles(self) -> int:
+        """How many external news results to fetch in full (0 = snippets)."""
+        return int(self.raw_config.get("fetch_external_articles", 0))
+
+    @property
+    def discovery_blocked_domains(self) -> set[str]:
+        return {d.lower() for d in
+                self.raw_config.get("discovery_blocked_domains") or []}
+
+    @property
+    def ai_task(self) -> str | None:
+        return self.raw_config.get("ai_task")
+
+    @property
+    def ai_extra_fields(self) -> dict[str, str]:
+        return dict(self.raw_config.get("ai_extra_fields") or {})
+
+    @property
+    def ai_grounded_fields(self) -> list[str]:
+        """List fields whose items must literally appear in the evidence."""
+        return list(self.raw_config.get("ai_grounded_fields") or [])
+
     def weight_for(self, signal_type: str) -> float:
         sig = self.signals.get(signal_type)
         return float(sig.weight) if sig else 0.0
@@ -155,8 +290,10 @@ class ServiceConfig:
             return None
         title = job_title.lower()
         best: tuple[int, int] | None = None  # (pattern_length, priority)
+        from app.utils.text import contains_phrase
         for role in self.roles:
-            if role.title_pattern in title:
+            # Word-boundary match: 'coo' must not match 'coordinator'.
+            if contains_phrase(title, role.title_pattern):
                 candidate = (len(role.title_pattern), role.role_priority)
                 if best is None or candidate[0] > best[0]:
                     best = candidate
@@ -170,8 +307,8 @@ def load_service_config(db: Session, slug: str | None = None) -> ServiceConfig:
     ).scalar_one_or_none()
     if service is None:
         raise LookupError(
-            f"Service '{slug}' not found. Run migrations/003_seed_3pl.sql "
-            f"or `python -m scripts.seed`.")
+            f"Service '{slug}' not found. Run the seed migrations "
+            f"(ALL_IN_ONE.sql) or `python -m scripts.seed`.")
     return build_config(db, service)
 
 

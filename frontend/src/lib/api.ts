@@ -1,8 +1,13 @@
 import type {
-  DashboardStats, Health, Lead, LeadDetail, Paginated, Service,
+  DashboardStats, Health, Lead, LeadDetail, Paginated, Service, Taxonomy,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_BASE_URL || ''
+
+/** The service this dashboard shows. The legacy '3pl' service is retained
+ *  in the database; set VITE_SERVICE_SLUG=3pl to view it. */
+export const SERVICE: string =
+  import.meta.env.VITE_SERVICE_SLUG || 'powersports_aftermarket_sourcing'
 
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 1000 // doubles each attempt: 1s, 2s, 4s
@@ -43,6 +48,9 @@ export interface LeadFilters {
   signal?: string
   min_score?: number; has_decision_maker?: boolean
   discovered_within_days?: number
+  state?: string; employee_band?: string; company_type?: string
+  product_category?: string; interest_type?: string
+  vehicle_segment?: string; signal_within_days?: number
   sort?: string; page?: number; page_size?: number
 }
 
@@ -60,7 +68,7 @@ function qs(params: Record<string, unknown>): string {
 export const api = {
   services: () => request<Service[]>('/api/services'),
 
-  stats: (service = '3pl') =>
+  stats: (service = SERVICE) =>
     request<DashboardStats>(`/api/stats${qs({ service })}`),
 
   health: () => request<Health>('/api/stats/health'),
@@ -77,15 +85,15 @@ export const api = {
       method: 'POST', body: JSON.stringify({ label, notes }),
     }),
 
-  runDiscovery: (service_slug = '3pl', limit?: number, country?: string) =>
+  runDiscovery: (service_slug = SERVICE, limit?: number, country?: string, tier?: number, max_queries?: number) =>
     request<{ message: string; task_id: string | null }>('/api/discovery/run', {
       method: 'POST',
-      body: JSON.stringify({ service_slug, limit, country, run_async: true }),
+      body: JSON.stringify({ service_slug, limit, country, tier, max_queries, run_async: true }),
     }),
 
   processQueue: (limit = 25) =>
     request<{ message: string }>(`/api/pipeline/process-queue${qs({ limit })}`, {
-      method: 'POST', body: JSON.stringify({ service_slug: '3pl' }),
+      method: 'POST', body: JSON.stringify({ service_slug: SERVICE }),
     }),
 
   addCompany: (url: string) =>
@@ -98,8 +106,11 @@ export const api = {
   reanalyze: (companyId: string) =>
     request<{ message: string }>(`/api/analyze/${companyId}`, {
       method: 'POST',
-      body: JSON.stringify({ service_slug: '3pl', force_crawl: true }),
+      body: JSON.stringify({ service_slug: SERVICE, force_crawl: true }),
     }),
+
+  taxonomy: (service = SERVICE) =>
+    request<Taxonomy>(`/api/services/${service}/taxonomy`),
 
   runs: () => request<Array<Record<string, unknown>>>('/api/pipeline/runs'),
 

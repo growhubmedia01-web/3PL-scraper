@@ -37,7 +37,7 @@ def process_batch():
 
 def main():
     print("==================================================")
-    print("   3PL Scraper - Queue Drainer Tool (Local)       ")
+    print("   Intent Engine - Queue Drainer Tool (Local)     ")
     print("==================================================")
     
     stats = get_stats()

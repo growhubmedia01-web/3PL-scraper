@@ -2,9 +2,14 @@
 
 ## The one rule
 
-> The crawler does not know what 3PL is.
-> The company database does not know what 3PL is.
-> The generic intelligence engine does not know what 3PL is.
+> The crawler does not know what a service is selling.
+> The company database does not know what a service is selling.
+> The generic intelligence engine does not know what a service is selling.
+>
+> (Originally written for the 3PL service; it now holds for the default
+> powersports service too. Powersports vocabulary lives only in
+> `backend/scripts/services/powersports_aftermarket_sourcing.py` and the
+> rows it seeds - pinned by `tests/test_powersports.py::test_14b`.)
 
 Grep test:
 

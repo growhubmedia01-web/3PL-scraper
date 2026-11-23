@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../lib/api'
+import { SERVICE, api } from '../lib/api'
 import type { DashboardStats, Health } from '../lib/types'
 import {
   Chip, ErrorBox, Spinner, StatCard, humanizeSignal,
 } from '../components/ui'
+
+// Cost control: the dashboard buttons only ever run a small tier-1 pilot.
+const PILOT = { limit: 20, tier: 1, maxQueries: 5 }
+const runPilot = () => api.runDiscovery(
+  SERVICE, PILOT.limit, 'US', PILOT.tier, PILOT.maxQueries)
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -74,8 +79,9 @@ export default function Dashboard() {
         <h1 className="text-xl font-bold">Dashboard</h1>
         <div className="flex gap-2">
           <button className="btn-ghost" disabled={busy !== null}
-            onClick={() => act('discovery', () => api.runDiscovery('3pl', 50))}>
-            {busy === 'discovery' ? 'Starting…' : 'Run discovery'}
+            title={`Tier ${PILOT.tier}, at most ${PILOT.maxQueries} queries`}
+            onClick={() => act('discovery', runPilot)}>
+            {busy === 'discovery' ? 'Starting…' : 'Run discovery pilot'}
           </button>
           <button className="btn-ghost" disabled={busy !== null}
             onClick={() => act('queue', () => api.processQueue(25))}>
@@ -83,7 +89,7 @@ export default function Dashboard() {
           </button>
           <button className="btn-primary" disabled={busy !== null}
             onClick={() => act('autopilot', async () => {
-              await api.runDiscovery('3pl', 50)
+              await runPilot()
               const res = await api.processQueue(25)
               return { message: "Auto pilot triggered: " + res.message }
             })}>
@@ -120,7 +126,7 @@ export default function Dashboard() {
         <StatCard label="Avg score" value={stats.average_score.toFixed(1)} />
       </div>
 
-      <div className="grid lg:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-4">
         <div className="card p-4">
           <h2 className="font-semibold text-sm mb-3">Pipeline health</h2>
           <dl className="text-sm space-y-2">
@@ -153,23 +159,21 @@ export default function Dashboard() {
             )}
         </div>
 
-        <div className="card p-4">
-          <h2 className="font-semibold text-sm mb-3">Business models</h2>
-          {!stats.by_business_model || stats.by_business_model.length === 0
-            ? <p className="text-sm text-ink-400">Nothing classified yet.</p>
-            : (
-              <div className="flex flex-wrap gap-1.5">
-                {stats.by_business_model.map((row) => (
-                  <Link key={row.business_model}
-                    to={`/leads?business_model=${row.business_model}`}>
-                    <Chip tone="blue">
-                      {humanizeSignal(row.business_model)} · {row.count}
-                    </Chip>
-                  </Link>
-                ))}
-              </div>
-            )}
-        </div>
+        <ChipPanel title="Company types" empty="Nothing classified yet."
+          rows={(stats.by_company_type || []).map((r) => ({
+            key: r.company_type, count: r.count,
+            to: `/leads?company_type=${r.company_type}` }))} tone="blue" />
+
+        <ChipPanel title="Products of interest" empty="No product interest recorded yet."
+          rows={(stats.by_product_category || []).map((r) => ({
+            key: r.category, count: r.count,
+            to: `/leads?product_category=${encodeURIComponent(r.category)}` }))}
+          tone="green" raw />
+
+        <ChipPanel title="Size bands" empty="No size information yet."
+          rows={(stats.by_employee_band || []).map((r) => ({
+            key: r.employee_band, count: r.count,
+            to: `/leads?employee_band=${r.employee_band}` }))} />
 
         <div className="card p-4">
           <h2 className="font-semibold text-sm mb-3">Top signals</h2>
@@ -191,8 +195,9 @@ export default function Dashboard() {
       <div className="card p-4">
         <h2 className="font-semibold text-sm mb-1">Test the pipeline</h2>
         <p className="text-xs text-ink-500 mb-3">
-          Paste any brand's website to run the full pipeline against one company
-          — crawl, classify, detect signals, score, find decision makers.
+          Paste a distributor's website to run the full pipeline against one
+          company — crawl, classify, profile, detect buying signals, extract
+          products of interest, score, find purchasing decision makers.
         </p>
         <form className="flex gap-2" onSubmit={async (e) => {
           e.preventDefault()
@@ -207,13 +212,38 @@ export default function Dashboard() {
             setNotice(`Failed: ${(err as Error).message}`)
           } finally { setBusy(null) }
         }}>
-          <input className="input flex-1" placeholder="https://examplebrand.com"
+          <input className="input flex-1" placeholder="https://exampledistributor.com"
             value={seedUrl} onChange={(e) => setSeedUrl(e.target.value)} />
           <button className="btn-primary" disabled={busy !== null}>
             {busy === 'add' ? 'Adding…' : 'Analyze company'}
           </button>
         </form>
       </div>
+    </div>
+  )
+}
+
+function ChipPanel({ title, empty, rows, tone = 'default', raw = false }: {
+  title: string; empty: string
+  rows: { key: string; count: number; to: string }[]
+  tone?: 'default' | 'green' | 'red' | 'blue'; raw?: boolean
+}) {
+  return (
+    <div className="card p-4">
+      <h2 className="font-semibold text-sm mb-3">{title}</h2>
+      {rows.length === 0
+        ? <p className="text-sm text-ink-400">{empty}</p>
+        : (
+          <div className="flex flex-wrap gap-1.5">
+            {rows.map((row) => (
+              <Link key={row.key} to={row.to}>
+                <Chip tone={tone}>
+                  {raw ? row.key : humanizeSignal(row.key)} · {row.count}
+                </Chip>
+              </Link>
+            ))}
+          </div>
+        )}
     </div>
   )
 }

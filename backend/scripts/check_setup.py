@@ -116,7 +116,7 @@ def check_database() -> bool:
             print("         A) Skip the network entirely (recommended).")
             print("            Paste backend/migrations/ALL_IN_ONE.sql into the")
             print("            Supabase SQL Editor and press Run. That creates")
-            print("            the schema and seeds the 3PL config with no local")
+            print("            the schema and seeds the service configs with no local")
             print("            database connection at all.\n")
             print("         B) Use the transaction pooler, which is IPv4:")
             print("            Supabase -> Project Settings -> Database ->")

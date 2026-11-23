@@ -160,6 +160,10 @@ def run_discovery(db: Session, config: ServiceConfig,
         log.warning("No enabled discovery queries for service '%s'"
                     "%s", config.slug, f" at tier {tier}" if tier else "")
 
+    # Directories, trade publications and marketplaces are evidence sources,
+    # never target companies. Services extend the global blocklist in config.
+    service_blocked = config.discovery_blocked_domains
+
     try:
         # Inside the try: a schema-drift error here (missing column) must be
         # recorded as a failed run, not raised to the caller as a 500.
@@ -185,7 +189,7 @@ def run_discovery(db: Session, config: ServiceConfig,
                 if stats.companies_created >= limit:
                     break
                 domain = normalize_domain(result.url)
-                if domain is None:
+                if domain is None or domain in service_blocked:
                     stats.blocked_skipped += 1
                     continue
                 stats.domains_extracted += 1

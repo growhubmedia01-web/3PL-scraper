@@ -45,7 +45,7 @@ to happen before a single row exists:
 | Step | Status | What it does |
 |---|---|---|
 | 1. `DATABASE_URL` points at a real database | ✅ done — set above | Opens the connection |
-| 2. Schema created + service config seeded | ❌ not yet | Creates the 11 tables and the 3PL signal weights |
+| 2. Schema created + service config seeded | ❌ not yet | Creates the tables and seeds the powersports (default) and legacy 3PL configs |
 | 3. Pipeline run at least once | ❌ not yet | Actually discovers and scores companies |
 
 Step 1 was the original blocker — the `.env` shipped with a literal
@@ -106,7 +106,7 @@ curl -X POST http://localhost:8000/api/companies/add \
 Wait ~30 seconds (it crawls ~12 pages politely, with delays), then:
 
 ```bash
-curl "http://localhost:8000/api/services/3pl/opportunities" | python -m json.tool
+curl "http://localhost:8000/api/services/powersports_aftermarket_sourcing/opportunities" | python -m json.tool
 ```
 
 Third terminal for the dashboard:
@@ -302,15 +302,15 @@ npm run build
 
 ```bash
 curl http://localhost:8000/api/stats/health   # setup checklist as JSON
-curl http://localhost:8000/api/services       # should list "3pl"
-curl "http://localhost:8000/api/services/3pl/config"   # resolved weights
+curl http://localhost:8000/api/services       # powersports_aftermarket_sourcing active, 3pl inactive
+curl "http://localhost:8000/api/services/powersports_aftermarket_sourcing/config"   # resolved weights
 open http://localhost:8000/docs               # interactive API docs
 ```
 
 ### Does scoring agree with you?
 
 The test that matters most isn't automated. Add 5–10 companies you already
-believe are good 3PL prospects, and 5 you know are bad:
+believe are good distributor prospects, and 5 you know are bad:
 
 ```bash
 for url in brand-a.com brand-b.com brand-c.com; do
@@ -330,7 +330,7 @@ curl -X PATCH http://localhost:8000/api/admin/signals/{signal_id} \
   -d '{"weight": 25}'
 ```
 
-Get signal IDs from `GET /api/services/3pl/signals`. Re-score everything from
+Get signal IDs from `GET /api/services/powersports_aftermarket_sourcing/signals`. Re-score everything from
 stored signals — no re-crawl, no API cost:
 
 ```bash
@@ -399,7 +399,7 @@ and restart `npm run dev`. The dashboard proxies `/api` to that address.
 **`SystemExit: DATABASE_URL is not configured`** — the placeholder is still in
 `.env`. That's step 1 above.
 
-**`Service '3pl' not found`** — schema exists but wasn't seeded.
+**`Service 'powersports_aftermarket_sourcing' not found`** — schema exists but wasn't seeded.
 `python -m scripts.seed`.
 
 **`connection to server ... failed`** — wrong password, or you're using the

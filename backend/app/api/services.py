@@ -97,4 +97,30 @@ def get_effective_config(service_ref: str, db: Session = Depends(get_db)):
         "keyword_count": len(config.keywords),
         "query_count": len(config.queries),
         "role_count": len(config.roles),
+        "signal_dimensions": config.signal_dimensions,
+        "dimension_caps": config.dimension_caps,
+        "qualification": config.qualification,
+        "fit_multipliers": config.fit_multipliers,
+        "product_categories": list(config.product_taxonomy),
+        "vehicle_segments": list(config.vehicle_segments),
+        "external_fetchers": config.external_fetchers,
+    }
+
+
+@router.get("/{service_ref}/taxonomy")
+def get_taxonomy(service_ref: str, db: Session = Depends(get_db)):
+    """Product taxonomy and filter vocab for the dashboard."""
+    service = _resolve(db, service_ref)
+    config = build_config(db, service)
+    return {
+        "product_taxonomy": {c: list(subs) for c, subs in
+                             config.product_taxonomy.items()},
+        "vehicle_segments": list(config.vehicle_segments),
+        "vehicle_platforms": config.vehicle_platforms,
+        "company_types": list(config.company_type_markers) + list(
+            (config.raw_config.get("hybrid_company_types") or {})),
+        "employee_bands": [b["band"] for b in config.size_bands] + ["unknown"],
+        "signals": [{"signal_type": s.signal_type, "signal_name": s.signal_name,
+                     "dimension": config.dimension_of(s.signal_type)}
+                    for s in config.signals.values()],
     }

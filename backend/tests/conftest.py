@@ -10,6 +10,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 import pytest  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app.models import (  # noqa: E402
     Base, Company, DiscoveryQuery, Service, ServiceKeyword, ServiceRole,
@@ -20,7 +21,8 @@ from app.models import (  # noqa: E402
 @pytest.fixture
 def db():
     engine = create_engine("sqlite+pysqlite:///:memory:",
-                           connect_args={"check_same_thread": False})
+                           connect_args={"check_same_thread": False},
+                           poolclass=StaticPool)   # one DB across threads (TestClient)
     Base.metadata.create_all(engine)
     Session = sessionmaker(bind=engine, expire_on_commit=False)
     session = Session()
