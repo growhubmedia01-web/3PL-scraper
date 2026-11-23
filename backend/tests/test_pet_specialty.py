@@ -691,3 +691,18 @@ def test_23c_distributor_self_description_qualifies(db, pet_config):
     ], pet_config.excluded_business_types, config=pet_config)
     assert result.company_type == "pet_specialty_distributor"
     assert result.relevant, result.rejection_reason
+
+
+def test_23d_distributor_split_navigation_qualifies(db, pet_config):
+    """A distributor whose site says it distributes brands and splits its
+    navigation into 'own a store?' (retailers) and 'have a product?' (brands)."""
+    company = make_company(db, "ridgelinepetdist.com")
+    result = classify(company, [
+        page("https://ridgelinepetdist.com",
+             "Proudly distributing independent brands of pet food and treats. "
+             "Own a store? Shop wholesale. Have a product? Apply here.",
+             "Ridgeline Distributing"),
+        page("https://ridgelinepetdist.com/contact", "44 Oak Ave, Boise, ID 83702"),
+    ], pet_config.excluded_business_types, config=pet_config)
+    assert result.company_type == "pet_specialty_distributor"
+    assert result.relevant, result.rejection_reason
