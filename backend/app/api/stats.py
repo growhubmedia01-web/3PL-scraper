@@ -4,14 +4,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
 from app.models import (
-    ApiUsage, Company, CrawlJob, DecisionMaker, ProductInterest, Service,
-    ServiceOpportunity, Signal,
+    ApiUsage, Company, CrawlJob, DecisionMaker, DiscoveryQuery, ProductInterest,
+    Service, ServiceOpportunity, Signal,
 )
 from app.schemas import DashboardStats
 
@@ -27,16 +27,28 @@ def dashboard(service: str = Query(settings.default_service_slug),
         raise HTTPException(404, f"Service '{service}' not found")
 
     stats = DashboardStats()
+    opp_where = ServiceOpportunity.service_id == svc.id
+
+    # Companies are shared by every service (one row per domain), so the
+    # company-level cards are scoped to this service: companies its own
+    # discovery queries found, plus any company that is one of its leads.
+    # Without this the legacy 3PL history dominates every company count.
+    service_searches = select(
+        literal("search:").concat(DiscoveryQuery.query)
+    ).where(DiscoveryQuery.service_id == svc.id)
+    in_service = or_(
+        Company.discovered_via.in_(service_searches),
+        Company.id.in_(select(ServiceOpportunity.company_id).where(opp_where)))
+    service_company_ids = select(Company.id).where(in_service)
+
     stats.total_companies = db.execute(
-        select(func.count(Company.id))).scalar_one()
+        select(func.count(Company.id)).where(in_service)).scalar_one()
     stats.companies_crawled = db.execute(
         select(func.count(Company.id)).where(
-            Company.last_crawled_at.is_not(None))).scalar_one()
+            in_service, Company.last_crawled_at.is_not(None))).scalar_one()
     stats.companies_rejected = db.execute(
         select(func.count(Company.id)).where(
-            Company.status == "rejected")).scalar_one()
-
-    opp_where = ServiceOpportunity.service_id == svc.id
+            in_service, Company.status == "rejected")).scalar_one()
     stats.total_opportunities = db.execute(
         select(func.count(ServiceOpportunity.id)).where(opp_where)).scalar_one()
 
@@ -63,7 +75,7 @@ def dashboard(service: str = Query(settings.default_service_slug),
 
     country_rows = db.execute(
         select(Company.country, func.count(Company.id))
-        .where(Company.country.is_not(None))
+        .where(in_service, Company.country.is_not(None))
         .group_by(Company.country).order_by(func.count(Company.id).desc())
     ).all()
     stats.countries = len(country_rows)
@@ -80,7 +92,7 @@ def dashboard(service: str = Query(settings.default_service_slug),
     try:
         model_rows = db.execute(
             select(Company.business_model, func.count(Company.id))
-            .where(Company.business_model.is_not(None))
+            .where(in_service, Company.business_model.is_not(None))
             .group_by(Company.business_model)
             .order_by(func.count(Company.id).desc())
         ).all()
@@ -124,19 +136,24 @@ def dashboard(service: str = Query(settings.default_service_slug),
         db.rollback()
 
     stats.decision_makers_identified = db.execute(
-        select(func.count(DecisionMaker.id))).scalar_one()
+        select(func.count(DecisionMaker.id)).where(
+            DecisionMaker.company_id.in_(service_company_ids))).scalar_one()
 
+    in_service_job = CrawlJob.company_id.in_(service_company_ids)
     completed = db.execute(
         select(func.count(CrawlJob.id)).where(
-            CrawlJob.status == "completed")).scalar_one()
+            in_service_job, CrawlJob.status == "completed")).scalar_one()
     attempted = db.execute(
         select(func.count(CrawlJob.id)).where(
+            in_service_job,
             CrawlJob.status.in_(("completed", "failed")))).scalar_one()
     stats.crawl_success_rate = round(completed / attempted * 100, 1) if attempted else 0.0
 
     ai_rows = db.execute(
         select(ApiUsage.success, func.count(ApiUsage.id))
-        .where(ApiUsage.operation.like("analyze%")).group_by(ApiUsage.success)
+        .where(ApiUsage.operation.like("analyze%"),
+               ApiUsage.company_id.in_(service_company_ids))
+        .group_by(ApiUsage.success)
     ).all()
     for success, count in ai_rows:
         if success:
