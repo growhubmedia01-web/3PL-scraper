@@ -1034,6 +1034,27 @@ _HIRING_EXPANSION = [
 ]
 
 
+# State-by-state distributor discovery. The first live run showed that
+# searches naming the distributor directly yield real distributors, while
+# category and expansion searches mostly surface brands and trade press.
+_STATES = [
+    "Alabama", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
+    "Delaware", "Florida", "Georgia", "Idaho", "Illinois", "Indiana", "Iowa",
+    "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts",
+    "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska",
+    "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York",
+    "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
+    "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+    "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+    "West Virginia", "Wisconsin", "Wyoming",
+]
+_STATE_DISTRIBUTOR_TYPES = [
+    "pet food distributor",
+    "wholesale pet supplies distributor",
+    "pet supply distributor for independent pet stores",
+]
+
+
 def build_library() -> list[Query]:
     out: list[Query] = []
 
@@ -1052,6 +1073,9 @@ def build_library() -> list[Query]:
         add(text, 3, "distributor_discovery")
     for text in _HIRING_EXPANSION:
         add(text, 4, "hiring_expansion")
+    for kind in _STATE_DISTRIBUTOR_TYPES:
+        for state in _STATES:
+            add(f"{kind} {state}", 3, "state_distributors")
 
     seen: set[tuple[str, str | None]] = set()
     unique: list[Query] = []

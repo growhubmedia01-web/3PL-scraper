@@ -429,7 +429,7 @@ def test_15_regulators_and_trade_press_are_never_prospects(pet_config):
 def test_16_query_library_is_small_and_tiered():
     library = pet.build_library()
     stats = pet.stats(library)
-    assert 50 <= stats["total"] <= 150
+    assert 150 <= stats["total"] <= 300
     assert set(stats["by_tier"]) == {1, 2, 3, 4}
     assert all("(" not in q.text and ")" not in q.text for q in library)
     assert all(q.country == "US" for q in library)
