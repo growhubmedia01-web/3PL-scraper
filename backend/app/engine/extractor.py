@@ -34,7 +34,10 @@ PAGE_TYPE_PATTERNS: list[tuple[str, re.Pattern]] = [
                             r"submit-(a-)?product)", re.I)),
     ("dealer", re.compile(r"/(dealers?|become-a-dealer|dealer-(application|"
                           r"signup|sign-up|program|inquiry|locator)|"
-                          r"find-a-dealer|wholesale-application|resellers?)", re.I)),
+                          r"find-a-dealer|wholesale-application|resellers?|"
+                          r"retailers?|become-a-retailer|retailer-(application|"
+                          r"signup|sign-up|program|inquiry)|wholesale-accounts?|"
+                          r"open-an?-account|stockist-application)", re.I)),
     ("brands", re.compile(r"/(brands?|our-brands|line-?card|manufacturers|"
                           r"product-lines?|catalogs?)(/|$)", re.I)),
     ("shipping", re.compile(r"/(shipping|delivery|shipping-policy|delivery-information)", re.I)),

@@ -32,6 +32,7 @@ COLUMN_ORIGINS: dict[tuple[str, str], str] = {
         "company_type", "company_type_confidence", "company_type_evidence",
         "employee_band", "size_confidence", "size_source_url",
         "size_observed_at", "headquarters", "headquarters_state")},
+    ("product_interests", "attributes"): "009_product_interest_attributes.sql",
 }
 
 # Tables added after the initial schema.

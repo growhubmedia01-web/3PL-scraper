@@ -105,3 +105,15 @@ Only add a second service once HOT precision is acceptable.
 - First run: the small tier-1 pilot in `docs/POWERSPORTS_SOURCING.md`
   ("First controlled pilot"). The dashboard's "Run discovery pilot" button is
   hard-limited to tier 1, 5 queries, 20 companies.
+
+## Pet specialty service (migration 010)
+
+See [PET_SPECIALTY_SOURCING.md](PET_SPECIALTY_SOURCING.md). To switch:
+apply 009 then 010 in Supabase, deploy, set `DEFAULT_SERVICE_SLUG` and
+`VITE_SERVICE_SLUG` to `pet_specialty_food_treats_supplements`, then run one
+controlled discovery batch (about 20-30 queries) and review leads before
+scaling:
+
+```bash
+python autopilot.py --service pet_specialty_food_treats_supplements --target-leads 20
+```

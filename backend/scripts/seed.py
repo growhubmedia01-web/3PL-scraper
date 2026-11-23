@@ -376,9 +376,12 @@ def run_sql_migrations() -> None:
     """Postgres path: execute the .sql files in order."""
     from scripts.services import MIGRATION_FILES
     with engine.begin() as conn:
-        for name in ("001_init.sql", "002_rls.sql", "003_seed_3pl.sql",
-                     "004_broaden_beyond_ecommerce.sql", "006_linkedin_url.sql",
-                     *MIGRATION_FILES.values(), "008_source_types.sql"):
+        # Numbered order: 009 alters a table 007 creates.
+        for name in sorted({"001_init.sql", "002_rls.sql", "003_seed_3pl.sql",
+                            "004_broaden_beyond_ecommerce.sql",
+                            "006_linkedin_url.sql", "008_source_types.sql",
+                            "009_product_interest_attributes.sql",
+                            *MIGRATION_FILES.values()}):
             path = MIGRATIONS / name
             log.info("Applying %s", name)
             conn.execute(text(path.read_text()))

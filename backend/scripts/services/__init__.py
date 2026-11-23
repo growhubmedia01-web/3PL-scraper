@@ -9,15 +9,19 @@ from __future__ import annotations
 
 from types import ModuleType
 
-from scripts.services import powersports_aftermarket_sourcing
+from scripts.services import (pet_specialty_food_treats_supplements,
+                             powersports_aftermarket_sourcing)
 
 SERVICE_MODULES: dict[str, ModuleType] = {
     powersports_aftermarket_sourcing.SLUG: powersports_aftermarket_sourcing,
+    pet_specialty_food_treats_supplements.SLUG: pet_specialty_food_treats_supplements,
 }
 
 # Migration file generated for each registered service.
 MIGRATION_FILES: dict[str, str] = {
     powersports_aftermarket_sourcing.SLUG: "007_powersports_aftermarket_sourcing.sql",
+    pet_specialty_food_treats_supplements.SLUG:
+        "010_pet_specialty_food_treats_supplements.sql",
 }
 
 

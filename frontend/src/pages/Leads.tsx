@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { SERVICE, api, type LeadFilters } from '../lib/api'
-import type { Lead, Paginated, Taxonomy } from '../lib/types'
+import type { Lead, Paginated } from '../lib/types'
+import { DEFAULT_LABELS, useTaxonomy } from '../lib/useTaxonomy'
 import {
   Chip, EmptyState, ErrorBox, IntentBadge, ScoreRing, Spinner,
   formatDate, humanizeSignal,
@@ -33,11 +34,8 @@ export default function Leads() {
   const [data, setData] = useState<Paginated<Lead> | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [taxonomy, setTaxonomy] = useState<Taxonomy | null>(null)
-
-  useEffect(() => {
-    api.taxonomy().then(setTaxonomy).catch(() => setTaxonomy(null))
-  }, [])
+  const taxonomy = useTaxonomy()
+  const labels = taxonomy?.ui_labels ?? DEFAULT_LABELS
 
   const filters: LeadFilters = useMemo(() => ({
     q: params.get('q') || undefined,
@@ -151,16 +149,13 @@ export default function Leads() {
           {select('company_type', 'Company type', opts(taxonomy?.company_types))}
           {select('product_category', 'Product category',
             opts(taxonomy ? Object.keys(taxonomy.product_taxonomy) : []))}
-          {select('vehicle_segment', 'Vehicle segment', opts(taxonomy?.vehicle_segments))}
+          {select('vehicle_segment', labels.segment, opts(taxonomy?.vehicle_segments))}
           {select('signal', 'Signal type', (taxonomy?.signals || [])
             .filter((s) => s.dimension !== 'negative')
             .map((s) => ({ value: s.signal_type, label: s.signal_name })))}
-          {select('interest_type', 'Product interest', [
-            { value: 'EXPLICITLY_SEEKING', label: 'Explicitly seeking' },
-            { value: 'RECENTLY_ADDED', label: 'Recently added' },
-            { value: 'CURRENTLY_CARRIED', label: 'Currently carried' },
-            { value: 'INFERRED_FIT', label: 'Inferred fit' },
-          ])}
+          {select('interest_type', 'Product interest',
+            Object.entries(labels.interest_types)
+              .map(([value, label]) => ({ value, label })))}
           {select('signal_within_days', 'Signal freshness', FRESHNESS)}
         </div>
 

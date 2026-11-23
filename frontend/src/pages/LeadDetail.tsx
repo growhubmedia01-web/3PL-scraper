@@ -7,6 +7,7 @@ import type {
 import {
   Chip, ErrorBox, IntentBadge, ScoreRing, Spinner, formatDate, humanizeSignal,
 } from '../components/ui'
+import { useLabels } from '../lib/useTaxonomy'
 
 const NO_DEMAND = 'Specific product demand not publicly disclosed.'
 
@@ -23,7 +24,9 @@ const INTEREST_CLASSES: { type: InterestType; label: string; hint: string }[] = 
 
 const EXPANSION_SIGNALS = new Set([
   'distribution_center_expansion', 'dealer_network_expansion',
-  'acquisition_or_distribution_expansion',
+  'acquisition_or_distribution_expansion', 'regional_distribution_expansion',
+  'retail_network_expansion', 'acquisition_expansion',
+  'private_label_expansion',
 ])
 
 function Section({ letter, title, subtitle, children }: {
@@ -62,6 +65,7 @@ export default function LeadDetail() {
   const [data, setData] = useState<LeadDetailType | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const labels = useLabels()
 
   const load = useCallback(async () => {
     if (!id) return
@@ -220,7 +224,9 @@ export default function LeadDetail() {
                 if (rows.length === 0) return null
                 return (
                   <div key={cls.type}>
-                    <div className="font-medium text-sm">{cls.label} ({rows.length})</div>
+                    <div className="font-medium text-sm">
+                      {labels.interest_types[cls.type] || cls.label} ({rows.length})
+                    </div>
                     <div className="text-xs text-ink-500 mb-2">{cls.hint}</div>
                     <div className="space-y-2">
                       {rows.map((row) => <InterestRow key={row.id} row={row} />)}
@@ -403,6 +409,9 @@ function InterestRow({ row }: { row: ProductInterest }) {
         {row.brand && <Chip tone="blue">{row.brand}</Chip>}
         {row.vehicle_segments.map((v) => <Chip key={v}>{humanizeSignal(v)}</Chip>)}
         {row.vehicle_platforms.map((v) => <Chip key={v}>{v}</Chip>)}
+        {Object.values(row.attributes || {}).flat().map((v) => (
+          <Chip key={v}>{v}</Chip>
+        ))}
         <span className="text-xs text-ink-400 ml-auto">
           {Math.round(row.confidence * 100)}%
         </span>
