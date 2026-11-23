@@ -76,8 +76,10 @@ def process_company_task(self, company_id: str, service_slug: str | None = None,
 def process_queue_task(service_slug: str | None = None, limit: int = 25) -> dict:
     """Fan out queued companies as individual tasks so one slow site does not
     hold the whole batch."""
+    from app.engine.service_config import load_service_config
     with session_scope() as db:
-        companies = queued_companies(db, limit=limit)
+        config = load_service_config(db, service_slug or settings.default_service_slug)
+        companies = queued_companies(db, limit=limit, service_id=config.id)
         ids = [c.id for c in companies]
     for company_id in ids:
         process_company_task.delay(company_id, service_slug, False, False, True)

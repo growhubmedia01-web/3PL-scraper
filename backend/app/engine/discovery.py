@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -291,7 +291,8 @@ def add_company_manually(db: Session, url_or_domain: str,
     return company
 
 
-def queued_companies(db: Session, limit: int = 50) -> list[Company]:
+def queued_companies(db: Session, limit: int = 50,
+                     service_id: str | None = None) -> list[Company]:
     """Return up to *limit* companies ready to be processed.
 
     Concurrency is handled by the status field: crawl_company() immediately
@@ -300,10 +301,26 @@ def queued_companies(db: Session, limit: int = 50) -> list[Company]:
     FOR UPDATE SKIP LOCKED is intentionally NOT used here - long-running
     batches on free-tier hosts with PgBouncer can leave locks orphaned,
     permanently hiding rows from all future workers.
+
+    With *service_id*, a company found by ANOTHER service's discovery query
+    is left for that service: the queue is shared, and judging a pet
+    distributor by powersports rules (or the reverse) rejects it wrongly.
+    Companies not found by any service query (manual adds) stay eligible.
     """
+    stmt = select(Company).where(Company.status.in_(("queued", "discovered")))
+    if service_id is not None:
+        other_searches = (
+            select(literal("search:").concat(DiscoveryQuery.query))
+            .where(DiscoveryQuery.service_id != service_id))
+        own_searches = (
+            select(literal("search:").concat(DiscoveryQuery.query))
+            .where(DiscoveryQuery.service_id == service_id))
+        stmt = stmt.where(or_(
+            Company.discovered_via.is_(None),
+            Company.discovered_via.in_(own_searches),
+            Company.discovered_via.not_in(other_searches)))
     return list(db.execute(
-        select(Company)
-        .where(Company.status.in_(("queued", "discovered")))
+        stmt
         .order_by(Company.created_at)
         .limit(limit)
     ).scalars().all())

@@ -87,7 +87,7 @@ def _local_process_queue(service_slug: str, limit: int,
         session.add(run)
         session.flush()
 
-        companies = queued_companies(session, limit=limit)
+        companies = queued_companies(session, limit=limit, service_id=config.id)
         try:
             batch = pipeline_engine.process_batch(
                 session, companies, config, max_seconds=max_seconds)

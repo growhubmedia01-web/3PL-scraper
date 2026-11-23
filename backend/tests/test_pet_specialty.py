@@ -504,3 +504,34 @@ def test_18_api_labels_and_csv_export(db, pet_config, client):
     assert "Dog" in row["Vehicle Segments"]
     assert "Soft chews" in row["Product Attributes"]
     assert "Pet Supplements" in row["Recently Added"]
+
+
+# ---------------------------------------------------------------------
+# TEST 19 - the shared crawl queue hands each company to the service whose
+# query found it, so one service never judges another's companies
+# ---------------------------------------------------------------------
+def test_19_queue_is_scoped_to_the_discovering_service(db, pet_service):
+    from scripts.seed import seed_service_module
+    from app.engine.discovery import queued_companies
+    from app.models import DiscoveryQuery
+    ps_svc = seed_service_module(db, ps, with_library=True)
+    db.flush()
+
+    def query_of(svc):
+        return db.query(DiscoveryQuery).filter_by(service_id=svc.id).first().query
+
+    pet_co = make_company(db, "petco-found.com")
+    pet_co.discovered_via = f"search:{query_of(pet_service)}"
+    ps_co = make_company(db, "ps-found.com")
+    ps_co.discovered_via = f"search:{query_of(ps_svc)}"
+    manual = make_company(db, "manual-add.com")
+    manual.discovered_via = "manual"
+    for c in (pet_co, ps_co, manual):
+        c.status = "queued"
+    db.flush()
+
+    pet_q = {c.domain for c in queued_companies(db, 50, service_id=pet_service.id)}
+    ps_q = {c.domain for c in queued_companies(db, 50, service_id=ps_svc.id)}
+    assert pet_q == {"petco-found.com", "manual-add.com"}
+    assert ps_q == {"ps-found.com", "manual-add.com"}
+    assert len(queued_companies(db, 50)) == 3          # unscoped: unchanged
