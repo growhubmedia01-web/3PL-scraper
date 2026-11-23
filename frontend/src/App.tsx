@@ -17,7 +17,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center gap-8">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded bg-ink-900 text-white grid
-              place-items-center text-xs font-bold">PS</div>
+              place-items-center text-xs font-bold">PB</div>
             <span className="font-semibold">Distributor Buying Intelligence</span>
           </div>
           <nav className="flex gap-1">

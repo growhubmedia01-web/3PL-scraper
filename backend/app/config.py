@@ -131,7 +131,7 @@ class Settings(BaseSettings):
     max_ai_calls_per_run: int = 100
 
     # Legacy value was "3pl"; that service is retained (inactive).
-    default_service_slug: str = "powersports_aftermarket_sourcing"
+    default_service_slug: str = "pet_specialty_food_treats_supplements"
 
     @field_validator("database_url", "database_migration_url")
     @classmethod

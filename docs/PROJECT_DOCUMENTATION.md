@@ -227,8 +227,8 @@ All settings loaded from `backend/.env` via `pydantic-settings` (`app/config.py`
 | `CRAWL_MAX_SECONDS_PER_COMPANY`| `45` | Hard timeout ceiling per domain crawl |
 | `RESPECT_ROBOTS_TXT` | `true` | Hard compliance gate for crawling |
 | `MAX_COMPANIES_PER_DISCOVERY_RUN`| `200` | Discovery safety ceiling |
-| `DEFAULT_SERVICE_SLUG` | `powersports_aftermarket_sourcing` | Default target service (`3pl` = legacy) |
-| `VITE_SERVICE_SLUG` | `powersports_aftermarket_sourcing` | Service the dashboard shows (frontend build) |
+| `DEFAULT_SERVICE_SLUG` | `pet_specialty_food_treats_supplements` | Default target service (`3pl` = legacy) |
+| `VITE_SERVICE_SLUG` | `pet_specialty_food_treats_supplements` | Service the dashboard shows (frontend build) |
 
 ---
 
@@ -268,4 +268,4 @@ cd ../frontend && npm install && npm run dev   # http://localhost:5173
 ### Deployment Topology
 - **Frontend**: Hosted on Vercel / Netlify (`VITE_API_BASE_URL` pointing to backend).
 - **Backend API**: Railway / Render / AWS ECS.
-- **Database**: Supabase PostgreSQL with RLS enabled (`001_init.sql`, `002_rls.sql`, `003_seed_3pl.sql` ... `007_powersports_aftermarket_sourcing.sql`).
+- **Database**: Supabase PostgreSQL with RLS enabled (`001_init.sql`, `002_rls.sql`, `003_seed_3pl.sql` ... `007_powersports_aftermarket_sourcing.sql` ... `010_pet_specialty_food_treats_supplements.sql`).

@@ -318,7 +318,7 @@ def main() -> int:
     parser.add_argument("--stall-limit", type=int, default=3,
                         help="stop after this many rounds with no progress")
     parser.add_argument("--service", default=os.environ.get(
-        "DEFAULT_SERVICE_SLUG", "powersports_aftermarket_sourcing"))
+        "DEFAULT_SERVICE_SLUG", "pet_specialty_food_treats_supplements"))
     args = parser.parse_args()
 
     signal.signal(signal.SIGINT, _handle_interrupt)

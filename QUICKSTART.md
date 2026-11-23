@@ -106,7 +106,7 @@ curl -X POST http://localhost:8000/api/companies/add \
 Wait ~30 seconds (it crawls ~12 pages politely, with delays), then:
 
 ```bash
-curl "http://localhost:8000/api/services/powersports_aftermarket_sourcing/opportunities" | python -m json.tool
+curl "http://localhost:8000/api/services/pet_specialty_food_treats_supplements/opportunities" | python -m json.tool
 ```
 
 Third terminal for the dashboard:
@@ -302,8 +302,8 @@ npm run build
 
 ```bash
 curl http://localhost:8000/api/stats/health   # setup checklist as JSON
-curl http://localhost:8000/api/services       # powersports_aftermarket_sourcing active, 3pl inactive
-curl "http://localhost:8000/api/services/powersports_aftermarket_sourcing/config"   # resolved weights
+curl http://localhost:8000/api/services       # pet_specialty_food_treats_supplements and powersports_aftermarket_sourcing active, 3pl inactive
+curl "http://localhost:8000/api/services/pet_specialty_food_treats_supplements/config"   # resolved weights
 open http://localhost:8000/docs               # interactive API docs
 ```
 
@@ -330,7 +330,7 @@ curl -X PATCH http://localhost:8000/api/admin/signals/{signal_id} \
   -d '{"weight": 25}'
 ```
 
-Get signal IDs from `GET /api/services/powersports_aftermarket_sourcing/signals`. Re-score everything from
+Get signal IDs from `GET /api/services/pet_specialty_food_treats_supplements/signals`. Re-score everything from
 stored signals — no re-crawl, no API cost:
 
 ```bash
@@ -399,7 +399,7 @@ and restart `npm run dev`. The dashboard proxies `/api` to that address.
 **`SystemExit: DATABASE_URL is not configured`** — the placeholder is still in
 `.env`. That's step 1 above.
 
-**`Service 'powersports_aftermarket_sourcing' not found`** — schema exists but wasn't seeded.
+**`Service 'pet_specialty_food_treats_supplements' not found`** — schema exists but wasn't seeded.
 `python -m scripts.seed`.
 
 **`connection to server ... failed`** — wrong password, or you're using the

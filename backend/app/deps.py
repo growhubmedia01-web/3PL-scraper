@@ -12,7 +12,7 @@ from app.engine.service_config import ServiceConfig, load_service_config
 
 
 def get_service_config(
-    service: str | None = Query(None, description="Service slug, e.g. 'powersports_aftermarket_sourcing'"),
+    service: str | None = Query(None, description="Service slug, e.g. 'pet_specialty_food_treats_supplements'"),
     db: Session = Depends(get_db),
 ) -> ServiceConfig:
     try:
