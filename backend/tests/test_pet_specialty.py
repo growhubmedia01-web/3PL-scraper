@@ -604,3 +604,75 @@ def test_20c_b2b_sourcing_marketplace_is_not_a_distributor(db, pet_config):
         config=pet_config)
     assert result.company_type == "b2b_marketplace"
     assert not result.relevant
+
+
+# ---------------------------------------------------------------------
+# TEST 22 - external search never stores social-network results such as
+# personal LinkedIn profiles
+# ---------------------------------------------------------------------
+def test_22_external_search_skips_social_profiles(db, monkeypatch):
+    from types import SimpleNamespace
+    from app.engine import evidence
+    company = make_company(db, DOMAIN, "Harbor Pet Supply")
+
+    class FakeSearch:
+        has_provider = True
+
+        def search(self, *a, **k):
+            return [
+                SimpleNamespace(url="https://www.linkedin.com/in/jane-doe",
+                                title="Harbor Pet Supply - Jane Doe",
+                                snippet="Harbor Pet Supply buyer", published_at=None),
+                SimpleNamespace(url="https://petbiznews.com/harbor-adds-brand",
+                                title="Harbor Pet Supply adds brand",
+                                snippet="Harbor Pet Supply now distributes", published_at=None),
+            ]
+    monkeypatch.setattr(evidence, "SearchService", lambda *a, **k: FakeSearch())
+    found = evidence.search_external_signals(db, company)
+    urls = {e.url for e in found}
+    assert "https://petbiznews.com/harbor-adds-brand" in urls
+    assert not [u for u in urls if "linkedin.com" in u]
+    assert evidence.is_social_network_url("https://uk.linkedin.com/in/x")
+    assert not evidence.is_social_network_url("https://harborpetsupply.com")
+
+
+# ---------------------------------------------------------------------
+# TEST 23 - a pet brand's own wholesale page is not distributor evidence;
+# a distributor's brand application is (patterns from the live run)
+# ---------------------------------------------------------------------
+def test_23_brand_wholesale_page_does_not_make_a_distributor(db, pet_config):
+    company = make_company(db, "happysnoutchews.com")
+    result = classify(company, [
+        page("https://happysnoutchews.com",
+             "Happy Snout makes single-ingredient dog chews. Shop all chews.",
+             "Happy Snout"),
+        page("https://happysnoutchews.com/wholesale",
+             "Wholesale program for independent pet retailers and retail "
+             "partners. B2B ordering. Become a retailer and open a wholesale "
+             "account today.", "Wholesale"),
+        page("https://happysnoutchews.com/contact", "500 Pine St, Denver, CO 80202"),
+    ], pet_config.excluded_business_types, config=pet_config)
+    assert result.company_type != "pet_specialty_distributor"
+    assert not result.relevant
+
+
+def test_23b_distributor_with_brand_application_qualifies(db, pet_config):
+    company = make_company(db, "naturalpetdist.com")
+    pages = [
+        page("https://naturalpetdist.com",
+             "Natural Pet Distribution has four outside sales representatives, "
+             "each covering an area of our territory footprint, well educated on "
+             "the natural products we carry.", "Natural Pet Distribution"),
+        page("https://naturalpetdist.com/about-us",
+             "Founded in 1981, we service independent pet retailers and only "
+             "the independent pet specialty segment. Columbus, OH 43215.", "About"),
+        page("https://naturalpetdist.com/brand-application",
+             "Brand Application. Brands interested in distribution can complete "
+             "our new brand application for our purchasing team.",
+             "Brand Application", page_type="supplier"),
+    ]
+    result, signals, interests, _ = analyse(db, pet_config, company, pages)
+    assert result.relevant, result.rejection_reason
+    assert result.company_type == "pet_specialty_distributor"
+    assert "supplier_application_open" in signals
+    assert not by_type(interests, "EXPLICITLY_SEEKING")
