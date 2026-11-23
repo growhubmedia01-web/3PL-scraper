@@ -592,3 +592,15 @@ def test_21_later_rejected_company_is_not_listed(db, pet_config, client):
         client.get("/api/export", params={"service": pet.SLUG}).text)))
     assert rows == []
     assert db.query(ServiceOpportunity).filter_by(company_id=company.id).count() == 1
+
+
+def test_20c_b2b_sourcing_marketplace_is_not_a_distributor(db, pet_config):
+    company = make_company(db, "sourcevn.com")
+    result = classify(company, [page(
+        "https://sourcevn.com",
+        "Verified suppliers and B2B sourcing platform. Pet treats, dog chews "
+        "and pet products from all suppliers. Low MOQ. Live requests. Become a "
+        "supplier.", "Source VN")], pet_config.excluded_business_types,
+        config=pet_config)
+    assert result.company_type == "b2b_marketplace"
+    assert not result.relevant

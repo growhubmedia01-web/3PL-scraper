@@ -683,6 +683,12 @@ COMPANY_TYPE_MARKERS: dict[str, list[str]] = {
         "go to dashboard", "pricing plans", "per month", "saas",
         "software platform", "find the buyers", "find retailers for your",
         "sign up free", "api access"],
+    # B2B sourcing marketplaces and directories list suppliers; they do not buy
+    "b2b_marketplace": [
+        "verified suppliers", "b2b sourcing platform", "sourcing platform",
+        "all suppliers", "low moq", "post a buying request", "live requests",
+        "supplier directory", "find suppliers", "list your products",
+        "trade assurance", "become a supplier"],
     "pet_retailer": [
         "visit our store", "store hours", "in-store pickup", "curbside pickup",
         "shop our store", "pet boutique", "frequent buyer program",
@@ -857,7 +863,8 @@ CONFIG: dict = {
                                    "veterinary_supplier"],
         "reject_company_types": ["pet_retailer", "veterinary_clinic",
                                  "pet_service_provider", "manufacturer",
-                                 "brand_owner", "software_or_service_vendor"],
+                                 "brand_owner", "software_or_service_vendor",
+                                 "b2b_marketplace"],
         "unknown_company_type": "allow",
         "company_type_min_markers": 2,
         "allowed_countries": ["US"],
