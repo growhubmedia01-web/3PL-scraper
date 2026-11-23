@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import get_db
 from app.deps import require_admin
 from app.engine import linkedin
@@ -224,11 +225,45 @@ def list_suppressions(db: Session = Depends(get_db)):
              "reason": r.reason, "created_at": r.created_at} for r in rows]
 
 
+def _migration_007_schema() -> list[str]:
+    """DDL statements of migration 007, read from the generator so the
+    endpoint and the SQL file can never diverge."""
+    import re
+    from scripts.build_service_seed import SCHEMA_SQL
+    body = "\n".join(l for l in SCHEMA_SQL.splitlines()
+                     if not l.strip().startswith("--"))
+    return [stmt.strip() for stmt in re.split(r";\s*\n", body) if stmt.strip()]
+
+
+@router.post("/seed-service")
+def seed_service(slug: str = Query(settings.default_service_slug),
+                 with_library: bool = True, db: Session = Depends(get_db)):
+    """Idempotently seed (or refresh) a data-defined service from
+    scripts/services/. Mirrors the generated SQL migration. Never deletes;
+    sets the legacy 3PL service inactive, keeping its history."""
+    from scripts.seed import seed_service_module
+    from scripts.services import get as get_service_module
+
+    module = get_service_module(slug)
+    if module is None:
+        raise HTTPException(404, f"No data-defined service '{slug}'")
+    service = seed_service_module(db, module, with_library=with_library)
+    db.commit()
+    counts = {
+        "signals": db.query(ServiceSignal).filter_by(service_id=service.id).count(),
+        "keywords": db.query(ServiceKeyword).filter_by(service_id=service.id).count(),
+        "roles": db.query(ServiceRole).filter_by(service_id=service.id).count(),
+        "queries": db.query(DiscoveryQuery).filter_by(service_id=service.id).count(),
+    }
+    return {"slug": service.slug, "status": service.status, **counts}
+
+
 @router.post("/run-migration")
 def run_migration(db: Session = Depends(get_db)):
-    """Apply migrations 004 and 006: business_model/sales_channels and
-    linkedin_url/linkedin_source/linkedin_checked_at columns.
-    Safe to run multiple times (IF NOT EXISTS guards)."""
+    """Apply the schema parts of migrations 004, 006 and 007 (additive
+    columns and tables only; no seed data, nothing dropped).
+    Safe to run multiple times (IF NOT EXISTS guards). Seed the 007 service
+    afterwards with POST /api/admin/seed-service."""
     from sqlalchemy import text
     results = []
     sqls = [
@@ -238,6 +273,7 @@ def run_migration(db: Session = Depends(get_db)):
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS linkedin_url text",
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS linkedin_source text",
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS linkedin_checked_at timestamptz",
+        *_migration_007_schema(),
     ]
     for sql in sqls:
         try:
@@ -251,7 +287,8 @@ def run_migration(db: Session = Depends(get_db)):
 
 
 @router.post("/seed-queries")
-def seed_queries(service_ref: str = "3pl", tier: int | None = None,
+def seed_queries(service_ref: str = settings.default_service_slug,
+                 tier: int | None = None,
                  db: Session = Depends(get_db)):
     """Insert all queries from the query library that don't already exist.
 
@@ -262,13 +299,19 @@ def seed_queries(service_ref: str = "3pl", tier: int | None = None,
     from pathlib import Path
     from sqlalchemy import func as _func
 
-    scripts_dir = Path(__file__).resolve().parent.parent.parent / "scripts"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
-    from query_library import build_library  # type: ignore[import]
-
     service = _service(db, service_ref)
-    all_queries = build_library()
+    from scripts.services import get as get_service_module
+    module = get_service_module(service.slug)
+    if module is not None:
+        all_queries = module.build_library()
+    elif service.slug == "3pl":
+        scripts_dir = Path(__file__).resolve().parent.parent.parent / "scripts"
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+        from query_library import build_library  # type: ignore[import]
+        all_queries = build_library()
+    else:
+        raise HTTPException(404, f"No query library for '{service.slug}'")
     if tier is not None:
         all_queries = [q for q in all_queries if q.tier == tier]
 
@@ -286,7 +329,7 @@ def seed_queries(service_ref: str = "3pl", tier: int | None = None,
             db.add(DiscoveryQuery(
                 service_id=service.id,
                 query=q.text,
-                country=q.country,
+                country=getattr(q, "country", None),
                 priority=q.tier,
                 enabled=True,
             ))

@@ -23,7 +23,7 @@ if settings.sentry_dsn:
 app = FastAPI(
     title="B2B Intent Intelligence & Lead Discovery Platform",
     description=(
-        "Configurable B2B intent engine. V1 service: Third-Party Logistics.\n\n"
+        "Configurable B2B intent engine. Default service: Powersports Aftermarket Product Sourcing (legacy Third-Party Logistics service retained).\n\n"
         "**This platform does not discover, verify or store email addresses.** "
         "A complete lead is Company + Intent + Evidence + Decision Maker."
     ),

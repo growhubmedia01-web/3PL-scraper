@@ -25,6 +25,19 @@ log = logging.getLogger(__name__)
 COLUMN_ORIGINS: dict[tuple[str, str], str] = {
     ("companies", "business_model"): "004_broaden_beyond_ecommerce.sql",
     ("companies", "sales_channels"): "004_broaden_beyond_ecommerce.sql",
+    ("companies", "linkedin_url"): "006_linkedin_url.sql",
+    ("companies", "linkedin_source"): "006_linkedin_url.sql",
+    ("companies", "linkedin_checked_at"): "006_linkedin_url.sql",
+    **{("companies", c): "007_powersports_aftermarket_sourcing.sql" for c in (
+        "company_type", "company_type_confidence", "company_type_evidence",
+        "employee_band", "size_confidence", "size_source_url",
+        "size_observed_at", "headquarters", "headquarters_state")},
+}
+
+# Tables added after the initial schema.
+TABLE_ORIGINS: dict[str, str] = {
+    "company_facts": "007_powersports_aftermarket_sourcing.sql",
+    "product_interests": "007_powersports_aftermarket_sourcing.sql",
 }
 
 
@@ -40,6 +53,7 @@ class SchemaReport:
 
     def required_migrations(self) -> list[str]:
         found = {COLUMN_ORIGINS.get(col) for col in self.missing_columns}
+        found |= {TABLE_ORIGINS.get(t) for t in self.missing_tables}
         migrations = sorted(m for m in found if m)
         if self.missing_tables and not migrations:
             return ["ALL_IN_ONE.sql"]

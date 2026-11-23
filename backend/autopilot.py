@@ -2,7 +2,7 @@ import time
 import requests
 import datetime
 
-print("Starting 3PL Auto Pilot (No-Docker Mode)...")
+print("Starting Auto Pilot (No-Docker Mode)...")
 print("This script will run discovery and process the queue periodically.")
 
 def log(msg):

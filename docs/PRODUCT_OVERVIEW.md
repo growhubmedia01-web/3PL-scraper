@@ -2,7 +2,7 @@
 
 **A system that finds companies who are about to need your service — before they start looking for you.**
 
-Launch service: **Third-Party Logistics (3PL)**. Built to be pointed at other B2B services (packaging, freight, insurance, payroll — anything sold to companies that show public warning signs of needing it) without a rebuild.
+Default service: **Powersports Aftermarket Product Sourcing** - US wholesale distributors of aftermarket powersports parts with public buying intent, and the products they are sourcing ([details](POWERSPORTS_SOURCING.md)). The launch service, **Third-Party Logistics (3PL)**, is retained as a legacy service; the 3PL-specific sections below describe it. Built to be pointed at other B2B services (packaging, freight, insurance, payroll — anything sold to companies that show public warning signs of needing it) without a rebuild.
 
 ---
 

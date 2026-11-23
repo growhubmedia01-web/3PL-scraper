@@ -1,8 +1,15 @@
 # Configurable B2B Intent Intelligence & Lead Discovery Platform
 
-**V1 service: Third-Party Logistics (3PL)**
+**Default service: Powersports Aftermarket Product Sourcing** - finds mid-market
+US wholesale distributors of aftermarket powersports parts and accessories,
+detects public evidence that they are buying, and extracts which products.
+See [docs/POWERSPORTS_SOURCING.md](docs/POWERSPORTS_SOURCING.md).
 
-Discovers ecommerce and physical-product brands, collects public business
+The original **Third-Party Logistics (3PL)** service is retained in the
+database (inactive, history intact); set `DEFAULT_SERVICE_SLUG=3pl` and
+`VITE_SERVICE_SLUG=3pl` to switch back.
+
+Discovers target companies, collects public business
 information, detects buying signals, scores intent, identifies the likely
 decision maker, and shows the evidence behind every conclusion.
 
@@ -24,7 +31,7 @@ cd backend && pip install -r requirements.txt
 
 # 2. Add your Supabase DB password + one LLM key to backend/.env  (see below)
 
-# 3. Create the schema and seed the 3PL configuration
+# 3. Create the schema and seed the service configurations (powersports default + legacy 3PL)
 python -m scripts.seed
 
 # 4. Run the API
@@ -89,7 +96,12 @@ editor and run in order:
 
 1. `backend/migrations/001_init.sql` — tables, indexes, triggers
 2. `backend/migrations/002_rls.sql` — row-level security policies
-3. `backend/migrations/003_seed_3pl.sql` — the 3PL service configuration
+3. `backend/migrations/003_seed_3pl.sql` — the legacy 3PL service configuration
+4. `004`–`006` — segment broadening, the 3PL query library, LinkedIn columns
+5. `backend/migrations/007_powersports_aftermarket_sourcing.sql` — the default
+   powersports service (additive; sets 3PL inactive, deletes nothing)
+
+Or paste `ALL_IN_ONE.sql`, which concatenates all of them.
 
 **Option B — from Python**, once `DATABASE_MIGRATION_URL` has a real password:
 
@@ -181,7 +193,8 @@ backend/
     api/                   FastAPI routers
     workers/               Celery tasks + beat schedule
   migrations/              SQL for Supabase
-  scripts/seed.py          schema + 3PL seed
+  scripts/seed.py          schema + service seeds (--service all|3pl|<slug>)
+  scripts/services/        data-defined services (powersports source of truth)
   tests/                   45 tests
 frontend/
   src/pages/               Dashboard, Leads, LeadDetail
@@ -359,7 +372,7 @@ a separate service — it will drive your hosting bill more than any API.
 
 1. Fill in the DB password and an LLM key; run `python -m scripts.seed`.
 2. Verify the Serper key with the curl above.
-3. Add 5–10 companies you already know are good 3PL prospects via
+3. Add 5–10 distributors you already know are good prospects via
    `POST /api/companies/add`. Check whether they score STRONG or HOT — if they
    don't, tune weights in `service_signals` rather than changing code.
 4. Run discovery, label ~100 leads in the UI, then measure HOT/STRONG precision

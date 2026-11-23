@@ -1,4 +1,4 @@
-"""Regenerate migrations/ALL_IN_ONE.sql from the three source migrations.
+"""Regenerate migrations/ALL_IN_ONE.sql from the source migrations.
 
 Run after editing any of them:
     python -m scripts.build_all_in_one
@@ -20,12 +20,17 @@ PARTS = [
     ("002_rls.sql", "ROW LEVEL SECURITY - policies"),
     ("003_seed_3pl.sql", "SEED - the 3PL service configuration"),
     ("004_broaden_beyond_ecommerce.sql",
-     "BROADEN - wholesale, manufacturing, retail, subscription segments"),
+     "BROADEN - legacy 3PL wholesale, manufacturing, retail segments"),
+    ("006_linkedin_url.sql", "SCHEMA - company LinkedIn URL columns"),
+    ("007_powersports_aftermarket_sourcing.sql",
+     "SEED - Powersports Aftermarket Product Sourcing (default service)"),
 ]
 
 HEADER = """-- =====================================================================
 --  ALL-IN-ONE MIGRATION
---  Configurable B2B Intent Intelligence Platform  |  V1 service: 3PL
+--  Configurable B2B Intent Intelligence Platform
+--  Default service: powersports_aftermarket_sourcing
+--  Legacy service retained (inactive): 3pl
 --
 --  Paste this entire file into the Supabase SQL Editor and press Run.
 --  Requires no local database connection, no drivers, no DNS.
@@ -35,7 +40,10 @@ HEADER = """-- =================================================================
 --
 --  GENERATED FILE - do not edit directly.
 --  Source: 001_init.sql + 002_rls.sql + 003_seed_3pl.sql
---          + 004_broaden_beyond_ecommerce.sql
+--          + 004_broaden_beyond_ecommerce.sql + 006_linkedin_url.sql
+--          + 007_powersports_aftermarket_sourcing.sql
+--  (005_query_library.sql - the 8k-query legacy 3PL library - is optional
+--   and run separately.)
 --  Rebuild: python -m scripts.build_all_in_one
 --  Generated {stamp}
 -- =====================================================================
@@ -60,11 +68,13 @@ select
 def expected_counts() -> str:
     """Derived from the SQL itself, deduplicated the same way Postgres will
     dedupe it, so this comment can never drift out of date."""
+    from scripts.sql_parse import SERVICE_SEED_GROUPS
     from scripts.sql_parse import expected_counts as counts
 
-    c = counts()
-    return (f"1 service, {c['signals']} signals, {c['keywords']} keywords, "
-            f"{c['queries']} queries, {c['roles']} roles")
+    c = counts(SERVICE_SEED_GROUPS)
+    return (f"{c['services']} services, {c['signals']} signals, "
+            f"{c['keywords']} keywords, {c['queries']} queries, "
+            f"{c['roles']} roles")
 
 
 def _assert_ascii(text: str, label: str) -> str:

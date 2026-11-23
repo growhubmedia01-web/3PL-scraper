@@ -1,0 +1,547 @@
+-- =====================================================================
+-- 007  POWERSPORTS AFTERMARKET PRODUCT SOURCING
+--
+-- Service slug: powersports_aftermarket_sourcing
+-- New default service. Additive and idempotent: safe to re-run, safe on a
+-- database seeded by 001-006. Deletes nothing. The legacy '3pl' service is
+-- set inactive and keeps every signal, keyword, query, opportunity and
+-- review it ever produced.
+--
+-- GENERATED FILE - do not edit directly.
+-- Source: scripts/services/powersports_aftermarket_sourcing.py
+-- Rebuild: python -m scripts.build_service_seed powersports_aftermarket_sourcing
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 1. GENERIC SCHEMA ADDITIONS (additive only - nothing dropped or renamed)
+-- ---------------------------------------------------------------------
+alter table companies add column if not exists company_type text;
+alter table companies add column if not exists company_type_confidence double precision;
+alter table companies add column if not exists company_type_evidence jsonb not null default '{}'::jsonb;
+alter table companies add column if not exists employee_band text;
+alter table companies add column if not exists size_confidence double precision;
+alter table companies add column if not exists size_source_url text;
+alter table companies add column if not exists size_observed_at timestamptz;
+alter table companies add column if not exists headquarters text;
+alter table companies add column if not exists headquarters_state text;
+alter table companies add column if not exists linkedin_url text;
+alter table companies add column if not exists linkedin_source text;
+alter table companies add column if not exists linkedin_checked_at timestamptz;
+
+create index if not exists idx_companies_company_type on companies(company_type);
+create index if not exists idx_companies_employee_band on companies(employee_band);
+create index if not exists idx_companies_hq_state on companies(headquarters_state);
+
+-- Time-varying, sourced company facts. is_estimate separates verified
+-- statements from inferences.
+create table if not exists company_facts (
+    id           uuid primary key default gen_random_uuid(),
+    company_id   uuid not null references companies(id) on delete cascade,
+    fact_type    text not null,
+    value        text not null,
+    source_id    uuid references sources(id) on delete set null,
+    source_url   text,
+    evidence     text,
+    confidence   double precision not null default 0.5,
+    is_estimate  boolean not null default false,
+    observed_at  timestamptz not null default now(),
+    unique (company_id, fact_type, value)
+);
+create index if not exists idx_company_facts_company
+  on company_facts(company_id, fact_type);
+
+-- What a company may want to buy, with the evidence class of each claim.
+create table if not exists product_interests (
+    id                uuid primary key default gen_random_uuid(),
+    company_id        uuid not null references companies(id) on delete cascade,
+    service_id        uuid not null references services(id) on delete cascade,
+    signal_id         uuid references signals(id) on delete set null,
+    signal_type       text,
+    interest_type     text not null check (interest_type in
+                        ('EXPLICITLY_SEEKING','RECENTLY_ADDED',
+                         'CURRENTLY_CARRIED','INFERRED_FIT')),
+    category          text,
+    subcategory       text,
+    products          jsonb not null default '[]'::jsonb,
+    vehicle_segments  jsonb not null default '[]'::jsonb,
+    vehicle_platforms jsonb not null default '[]'::jsonb,
+    brand             text,
+    reason            text,
+    source_id         uuid references sources(id) on delete set null,
+    source_url        text,
+    published_at      timestamptz,
+    event_date        timestamptz,
+    evidence          text,
+    confidence        double precision not null default 0.5,
+    created_at        timestamptz not null default now()
+);
+create index if not exists idx_product_interests_company_service
+  on product_interests(company_id, service_id);
+create index if not exists idx_product_interests_category
+  on product_interests(category);
+
+alter table company_facts     enable row level security;
+alter table product_interests enable row level security;
+drop policy if exists "auth_read_company_facts" on company_facts;
+create policy "auth_read_company_facts" on company_facts
+  for select to authenticated using (true);
+drop policy if exists "auth_read_product_interests" on product_interests;
+create policy "auth_read_product_interests" on product_interests
+  for select to authenticated using (true);
+
+-- ---------------------------------------------------------------------
+-- 2. SERVICE
+-- ---------------------------------------------------------------------
+insert into services (name, slug, description, status, config)
+values (
+  'Powersports Aftermarket Product Sourcing', 'powersports_aftermarket_sourcing',
+  'Find mid-market US wholesale distributors of aftermarket powersports parts and accessories that show public, evidenced intent to source new products, onboard new brands or expand categories - and which products they may be looking to buy.',
+  'active',
+  '{"adjacent_categories": {"ATV/UTV/Side-by-Side Accessories": ["Tires and Wheels", "Electrical and Performance"], "Electrical and Performance": ["Maintenance and Consumables"], "Maintenance and Consumables": ["Electrical and Performance"], "Motorcycle Aftermarket Accessories": ["Riding Gear and Protection", "Electrical and Performance"], "Riding Gear and Protection": ["Motorcycle Aftermarket Accessories"], "Tires and Wheels": ["ATV/UTV/Side-by-Side Accessories", "Maintenance and Consumables"]}, "ai_analysis_min_raw_score": 20, "ai_extra_fields": {"company_size_qualification": "\"mid_market\" | \"small\" | \"micro\" | \"large\" | \"unknown\" - never guess", "distribution_partnerships": "[string] - brands named in the evidence", "distributor_qualification": "\"qualified\" | \"possible\" | \"not_qualified\" | \"unknown\"", "distributor_qualification_reason": "string citing evidence", "likely_decision_roles": "[string] - job titles, never personal contact data", "product_categories": "[string] - only categories named in the evidence", "products_mentioned": "[string] - only products named in the evidence", "recent_expansion_activity": "[string]", "strongest_buying_signals": "[string]", "supplier_onboarding_evidence": "[string]"}, "ai_grounded_fields": ["likely_services", "product_categories", "products_mentioned", "distribution_partnerships"], "ai_probability_field": "buying_intent_probability", "ai_system_prompt": "You are a B2B supply-chain analyst for manufacturers that want to sell aftermarket powersports products through US distributors. You assess whether a company is a suitable US powersports aftermarket wholesale distributor and what public evidence shows it is currently seeking, purchasing, onboarding or expanding aftermarket product categories and supplier relationships. Commercial direction matters: a distributor recruiting dealers is selling, not buying; a manufacturer seeking a distributor is the opposite direction and is not a buyer. Base every conclusion strictly on the supplied evidence. Never invent products, brands, purchasing requirements, employee counts or revenue. A general growth announcement is not a specific purchasing requirement.", "ai_task": "Is this company a suitable US powersports aftermarket distributor, and what public evidence indicates that it is currently seeking, purchasing, onboarding or expanding aftermarket product categories and supplier relationships? Put the probability that it is actively expanding its supplier or product portfolio in service_probability. Put only product categories named in the evidence in likely_services. If no specific product requirement is identifiable, say exactly: Specific product demand not publicly disclosed.", "brand_patterns": ["distribution (?:agreement|partnership|deal) with ([A-Z][A-Za-z0-9&''\\-]+(?:\\s+[A-Z][A-Za-z0-9&''\\-]+){0,3})", "(?:exclusive|official|authorized|master) (?:US |U\\.S\\. |North American |national )?distributor (?:of|for) ([A-Z][A-Za-z0-9&''\\-]+(?:\\s+[A-Z][A-Za-z0-9&''\\-]+){0,3})", "(?:now|will) (?:distribute|distributing|carry|carrying|stock|stocking) ([A-Z][A-Za-z0-9&''\\-]+(?:\\s+[A-Z][A-Za-z0-9&''\\-]+){0,3})", "(?:added|adds|adding|welcomes|welcomed) ([A-Z][A-Za-z0-9&''\\-]+(?:\\s+[A-Z][A-Za-z0-9&''\\-]+){0,3}) (?:to (?:its|our|the) (?:lineup|line card|brand portfolio|portfolio|catalog|offering))", "partner(?:ed|ship)? with ([A-Z][A-Za-z0-9&''\\-]+(?:\\s+[A-Z][A-Za-z0-9&''\\-]+){0,3})"], "carried_page_types": ["brands", "website", "about", "other"], "company_type_markers": {"brand_owner": ["find a dealer", "dealer locator", "where to buy", "become a distributor", "distributor inquiries", "our products are sold through", "distributors wanted", "looking for distributors"], "dealer_retailer": ["visit our showroom", "new and used", "pre-owned inventory", "schedule a test ride", "showroom hours", "browse our inventory", "used inventory", "value your trade", "financing available", "new inventory", "in-stock units", "our dealership"], "importer": ["we import", "importer of", "exclusive importer", "import and distribute", "importer and distributor", "direct importer"], "manufacturer": ["we manufacture", "our factory", "manufactured in", "designed and manufactured", "engineered and manufactured", "our manufacturing facility", "manufacturing facility", "made in usa", "made in the usa", "in-house manufacturing", "we design and build"], "service_provider": ["schedule service", "service appointment", "repair shop", "our service department", "we repair", "service specials", "our technicians", "marketing agency", "digital agency"], "wholesale_distributor": ["wholesale distributor", "wholesale distribution", "distributor of", "we distribute", "master distributor", "dealer network", "authorized dealers", "independent dealers", "dealer portal", "dealer login", "dealer pricing", "serving dealers", "dealer support", "line card", "linecard", "brands we carry", "brands we distribute", "distribution centers", "distribution center", "wholesale only", "dealers only", "trade only", "become a dealer", "dealer application", "b2b", "distribution partner"]}, "crawl_link_first_page_types": ["supplier", "brands", "news", "careers", "dealer", "about"], "crawl_max_pages": 16, "crawl_priority_paths": [["/", "website"], ["/about", "about"], ["/about-us", "about"], ["/brands", "brands"], ["/our-brands", "brands"], ["/line-card", "brands"], ["/vendors", "supplier"], ["/suppliers", "supplier"], ["/vendor-application", "supplier"], ["/become-a-vendor", "supplier"], ["/news", "news"], ["/press", "news"], ["/careers", "careers"], ["/dealers", "dealer"], ["/become-a-dealer", "dealer"], ["/contact", "other"]], "decision_maker_optional_threshold": 30, "decision_maker_threshold": 40, "dimension_caps": {"intent": 40}, "discovery_blocked_domains": ["powersportsbusiness.com", "aimexpousa.com", "mic.org", "dealernews.com", "motorcycle.com", "cycleworld.com", "atv.com", "utvdriver.com", "utvactionmag.com", "dirtrider.com", "motorcyclistonline.com", "thomasnet.com", "zoominfo.com", "dnb.com", "manta.com", "bbb.org", "yellowpages.com", "mapquest.com", "rocketreach.co", "apollo.io", "craigslist.org", "cycletrader.com", "atvtrader.com", "revzilla.com", "rockymountainatvmc.com", "partzilla.com", "denniskirk.com", "cyclegear.com", "motosport.com", "jdpower.com", "kbb.com", "nadaguides.com", "facebook.com", "linkedin.com", "youtube.com"], "exclude_logistics_providers": false, "excluded_business_types": ["marketing agency", "seo agency", "web development agency", "digital agency", "software company", "saas platform", "consulting firm", "law firm", "recruitment agency", "staffing agency", "insurance agency", "trade publication"], "external_fetchers": ["ats"], "external_query_templates": [["press_release", "\"{name}\" \"distribution agreement\" OR \"now distributing\" OR \"exclusive distributor\" OR \"partnership\"", "news"], ["press_release", "\"{name}\" \"new brands\" OR \"new product lines\" OR \"product line expansion\" OR \"adds\"", "news"], ["news", "\"{name}\" powersports site:powersportsbusiness.com OR site:aimexpousa.com OR site:dealernews.com", "web"], ["supplier", "\"{name}\" \"vendor application\" OR \"supplier application\" OR \"new vendor\" OR \"submit your products\"", "web"], ["job", "\"{name}\" \"purchasing manager\" OR \"category manager\" OR \"buyer\" OR \"procurement\"", "web"], ["press_release", "\"{name}\" \"distribution center\" OR warehouse OR acquires OR acquisition", "news"]], "fetch_external_articles": 3, "fit_multipliers": {"company_type": {"default": 0.5, "hybrid_distributor_dealer": 0.85, "hybrid_distributor_manufacturer": 0.95, "importer": 0.9, "unknown": 0.75, "wholesale_distributor": 1.0}, "employee_band": {"large": 0.7, "micro": 0.55, "mid_market": 1.0, "small": 0.85, "unknown": 0.8}}, "hybrid_company_types": {"hybrid_distributor_dealer": ["wholesale_distributor", "dealer_retailer"], "hybrid_distributor_manufacturer": ["wholesale_distributor", "manufacturer"]}, "industry_keywords": {"powersports": ["powersports", "power sports", "atv", "utv", "side-by-side", "side by side", "sxs", "motorcycle", "motorcycles", "dirt bike", "motocross", "snowmobile", "v-twin", "off-road vehicle", "aftermarket parts", "dual sport", "adventure touring", "sled"]}, "intent_thresholds": {"GOOD": 51, "HOT": 86, "LOW": 0, "POSSIBLE": 31, "STRONG": 71}, "interest_type_by_signal": {"active_product_rfq": "EXPLICITLY_SEEKING", "catalog_or_linecard_expansion": "RECENTLY_ADDED", "explicit_supplier_search": "EXPLICITLY_SEEKING", "new_brand_added": "RECENTLY_ADDED", "new_distribution_partnership": "RECENTLY_ADDED", "new_product_line_launch": "RECENTLY_ADDED", "product_category_expansion": "RECENTLY_ADDED", "supplier_application_open": "EXPLICITLY_SEEKING"}, "no_product_demand_message": "Specific product demand not publicly disclosed.", "normalization_ceiling": 90, "product_taxonomy": {"ATV/UTV/Side-by-Side Accessories": {"Bumpers": ["front bumper", "rear bumper", "bumper"], "Cab Enclosures": ["cab enclosure", "cab enclosures", "cab heater", "rear window"], "Cargo Racks": ["cargo rack", "cargo box", "rack extender"], "Doors and Door Panels": ["utv door", "door panel", "upper door", "lower door", "suicide door"], "Grilles": ["grille", "grill guard", "brush guard"], "Lighting Systems": ["light bar", "whip light", "rock light", "pod light", "utv lighting"], "Mirrors": ["side mirror", "rear view mirror", "rearview mirror", "utv mirror"], "Recovery Accessories": ["recovery strap", "recovery kit", "tow strap", "traction board", "snatch block"], "Rock Sliders": ["rock slider", "rock sliders", "nerf bar"], "Roof Racks": ["roof rack"], "Roof Systems": ["roof system", "utv roof", "hard top", "soft top"], "Skid Plates": ["skid plate", "skid plates", "belly pan"], "Storage Systems": ["storage bag", "storage system", "under-seat storage", "dash storage"], "Tire Carriers": ["tire carrier", "spare tire carrier", "spare tire mount"], "Winches": ["winch", "winches", "winch mount", "synthetic rope"], "Windshield Wipers": ["windshield wiper", "wiper kit"], "Windshields": ["windshield", "windscreen", "half windshield", "full windshield"]}, "Electrical and Performance": {"Batteries": ["battery", "batteries", "lithium battery", "agm battery"], "Brake Components": ["brake pad", "brake rotor", "brake line", "brake caliper"], "Charging Systems": ["battery charger", "battery tender", "charging system", "stator"], "EFI Components": ["efi", "fuel injector", "throttle body"], "Electrical Accessories": ["electrical accessories", "usb charger", "power outlet", "switch panel"], "Engine Upgrades": ["big bore kit", "engine upgrade", "cam kit", "turbo kit", "clutch kit"], "Exhaust Systems": ["exhaust system", "slip-on exhaust", "full exhaust", "muffler"], "LED Lighting": ["led lighting", "led headlight", "led light"], "Performance Tuners": ["fuel programmer", "performance tuner", "ecu flash", "fuel controller"], "Suspension Components": ["suspension", "shock absorber", "shocks", "lift kit", "a-arm", "fork spring"], "Tire Balancing Products": ["tire balancing", "balance beads", "wheel weight"], "Wiring Harnesses": ["wiring harness", "wire harness"]}, "Maintenance and Consumables": {"Chains": ["drive chain", "motorcycle chain", "o-ring chain", "x-ring chain"], "Chemicals": ["chemicals", "fuel stabilizer", "coolant", "brake fluid"], "Cleaning Products": ["cleaning products", "bike wash", "degreaser", "detailing"], "Engine Oils": ["engine oil", "motor oil", "4-stroke oil", "2-stroke oil"], "Filters": ["oil filter", "air filter", "fuel filter"], "Lubricants": ["lubricant", "lubricants", "chain lube", "grease"], "Maintenance Kits": ["maintenance kit", "service kit", "tune-up kit"], "Sprockets": ["sprocket", "sprockets"], "Workshop Consumables": ["shop supplies", "workshop consumables", "zip ties", "shop towels"]}, "Motorcycle Aftermarket Accessories": {"Adventure Touring Products": ["adventure touring", "adv accessories", "adventure bike"], "Crash Bars": ["crash bar"], "Crash Protection": ["crash protection", "engine guard", "highway bar"], "Frame Sliders": ["frame slider", "crash slider", "axle slider"], "Handguards": ["handguard", "hand guard"], "Motorcycle Racks": ["luggage rack", "motorcycle rack", "sissy bar"], "Panniers": ["pannier"], "Saddlebags": ["saddlebag", "saddle bag"], "Styling Accessories": ["motorcycle styling", "chrome accessories", "custom grips", "foot pegs", "billet accessories"], "Top Cases": ["top case", "top box"], "Touring Luggage": ["touring luggage", "motorcycle luggage", "tail bag", "tank bag"], "Windscreens": ["motorcycle windscreen", "fairing", "wind deflector"]}, "Riding Gear and Protection": {"Body Armour": ["body armor", "body armour", "chest protector", "roost guard"], "Boots": ["riding boots", "motorcycle boots", "mx boots", "motocross boots"], "Casual Riding Apparel": ["casual apparel", "riding apparel", "moto apparel", "lifestyle apparel"], "Gloves": ["riding gloves", "motorcycle gloves", "mx gloves"], "Goggles": ["goggle", "goggles"], "Helmets": ["helmet", "helmets"], "Jackets": ["riding jacket", "motorcycle jacket"], "Jerseys": ["jersey", "jerseys"], "Knee Protection": ["knee brace", "knee guard", "knee protection"], "Motocross Apparel": ["motocross apparel", "mx apparel", "mx gear", "motocross gear"], "Neck Protection": ["neck brace", "neck protection"], "Riding Pants": ["riding pants", "mx pants", "motocross pants"], "Snowmobile Apparel": ["snowmobile apparel", "snowmobile jacket", "snowmobile bib", "monosuit"]}, "Tires and Wheels": {"ATV Tires": ["atv tire"], "Motorcycle Tires": ["motorcycle tire", "dirt bike tire", "street tire", "dual sport tire"], "Off-Road Tires": ["off-road tire", "mud tire", "all-terrain tire"], "Performance Wheels": ["performance wheel", "forged wheel", "cast wheel", "spoked wheel"], "Specialty Wheels": ["beadlock wheel", "specialty wheel", "atv wheel", "utv wheel"], "Tire and Wheel Systems": ["tire and wheel kit", "wheel and tire package", "mounted tire", "tire and wheel package"], "UTV Tires": ["utv tire", "side-by-side tire", "sxs tire"]}}, "qualification": {"allowed_countries": ["US"], "company_type_min_markers": 2, "eligible_company_types": ["wholesale_distributor", "importer", "hybrid_distributor_manufacturer", "hybrid_distributor_dealer"], "min_country_confidence": 0.6, "min_industry_markers": 2, "reject_company_types": ["dealer_retailer", "service_provider", "manufacturer", "brand_owner"], "required_industry": "powersports", "unknown_company_type": "allow"}, "query_exclusion_terms": ["for sale", "rental", "rentals"], "refresh_days": {"GOOD": 30, "HOT": 7, "LOW": 120, "POSSIBLE": 60, "STRONG": 14}, "required_signals": ["powersports_participation"], "score_weights": {"ai": 0.3, "deterministic": 0.5, "evidence": 0.2}, "signal_dimensions": {"b2b_dealer_distribution": "fit", "manufacturer_seeking_distribution": "negative", "powersports_participation": "fit", "retail_only_operation": "negative", "service_repair_operation": "negative"}, "signal_page_affinity": {"acquisition_or_distribution_expansion": ["news", "press_release", "about"], "active_product_rfq": ["supplier", "news", "press_release", "website", "other"], "catalog_or_linecard_expansion": ["brands", "website", "news", "press_release"], "category_buyer_hiring": ["careers", "job"], "dealer_network_expansion": ["news", "press_release", "about", "website", "dealer"], "distribution_center_expansion": ["news", "press_release", "about", "website"], "explicit_supplier_search": ["supplier", "news", "press_release", "website", "about", "other"], "new_brand_added": ["news", "press_release", "brands", "website"], "new_distribution_partnership": ["news", "press_release", "website", "brands", "about"], "new_product_line_launch": ["news", "press_release", "website", "brands"], "procurement_hiring": ["careers", "job"], "product_category_expansion": ["news", "press_release", "website", "brands"], "supplier_application_open": ["supplier", "website", "other", "about"]}, "signal_rules": {"acquisition_or_distribution_expansion": {"require_context_phrases": ["distributor", "distribution", "distributing", "aftermarket", "powersports", "parts", "accessories"]}, "active_product_rfq": {"exclude_page_types": ["dealer"], "require_context_phrases": ["supplier", "suppliers", "manufacturer", "manufacturers", "vendor", "vendors", "factory", "factories", "source", "sourcing", "brands"], "suppress_phrases": ["looking for a distributor", "looking for distributors", "seeking a distributor", "seeking distributors", "become a distributor", "distributor inquiries", "seeking a us distributor", "looking for a us distributor", "distributors wanted", "become a dealer", "become an authorized dealer", "dealer application", "dealer account", "open a dealer account", "wholesale account application", "apply for a dealer", "get a quote", "your quote", "your order", "our customers", "for dealers", "dealer quote"]}, "catalog_or_linecard_expansion": {"require_context_phrases": ["new", "added", "adds", "expanded", "expands", "expansion", "now includes", "additional"]}, "category_buyer_hiring": {"require_page_types": ["careers", "job"]}, "explicit_supplier_search": {"exclude_page_types": ["dealer"], "suppress_phrases": ["looking for a distributor", "looking for distributors", "seeking a distributor", "seeking distributors", "become a distributor", "distributor inquiries", "seeking a us distributor", "looking for a us distributor", "distributors wanted", "become a dealer", "become an authorized dealer", "dealer application", "dealer account", "open a dealer account", "wholesale account application", "apply for a dealer"]}, "new_brand_added": {"exclude_page_types": ["dealer"], "suppress_phrases": ["looking for", "seeking", "submit", "interested in", "our new brand identity", "looking for a distributor", "looking for distributors", "seeking a distributor", "seeking distributors", "become a distributor", "distributor inquiries", "seeking a us distributor", "looking for a us distributor", "distributors wanted"]}, "new_distribution_partnership": {"require_context_phrases": ["distribute", "distribution", "distributor", "distributing", "brand", "brands", "product line", "products", "dealers", "aftermarket", "accessories", "parts"], "suppress_phrases": ["looking for a distributor", "looking for distributors", "seeking a distributor", "seeking distributors", "become a distributor", "distributor inquiries", "seeking a us distributor", "looking for a us distributor", "distributors wanted"]}, "new_product_line_launch": {"require_context_phrases": ["powersports", "power sports", "atv", "utv", "side-by-side", "side by side", "sxs", "motorcycle", "motorcycles", "dirt bike", "motocross", "snowmobile", "off-road", "offroad", "aftermarket", "v-twin", "moto"], "suppress_phrases": ["looking for a distributor", "looking for distributors", "seeking a distributor", "seeking distributors", "become a distributor", "distributor inquiries", "seeking a us distributor", "looking for a us distributor", "distributors wanted"]}, "procurement_hiring": {"require_page_types": ["careers", "job"]}, "product_category_expansion": {"require_context_phrases": ["powersports", "power sports", "atv", "utv", "side-by-side", "side by side", "sxs", "motorcycle", "motorcycles", "dirt bike", "motocross", "snowmobile", "off-road", "offroad", "aftermarket", "v-twin", "moto"], "suppress_phrases": ["looking for a distributor", "looking for distributors", "seeking a distributor", "seeking distributors", "become a distributor", "distributor inquiries", "seeking a us distributor", "looking for a us distributor", "distributors wanted"]}, "supplier_application_open": {"exclude_page_types": ["dealer"], "suppress_phrases": ["looking for a distributor", "looking for distributors", "seeking a distributor", "seeking distributors", "become a distributor", "distributor inquiries", "seeking a us distributor", "looking for a us distributor", "distributors wanted", "become a dealer", "become an authorized dealer", "dealer application", "dealer account", "open a dealer account", "wholesale account application", "apply for a dealer"]}}, "size_bands": [{"band": "micro", "max": 10, "min": 1}, {"band": "small", "max": 49, "min": 11}, {"band": "mid_market", "max": 500, "min": 50}, {"band": "large", "max": null, "min": 501}], "undated_confidence_factor": 0.75, "vehicle_platforms": ["Polaris", "Can-Am", "CFMOTO", "Kawasaki", "Yamaha", "Honda", "Suzuki", "KTM", "Harley-Davidson", "Arctic Cat", "Ski-Doo", "BRP", "Textron", "Segway Powersports", "Husqvarna", "GasGas", "Ducati", "BMW Motorrad", "Triumph", "Indian Motorcycle", "Hisun", "Kymco", "Massimo", "RZR", "Ranger", "Maverick", "Defender", "Talon", "Pioneer", "Teryx", "Wolverine"], "vehicle_segments": {"ATV": ["atv", "atvs", "quad", "four wheeler"], "Motorcycle - Adventure": ["adventure bike", "adventure touring", "dual sport"], "Motorcycle - Off-Road/Motocross": ["motocross", "dirt bike", "mx", "enduro", "off-road motorcycle"], "Motorcycle - Street/Touring": ["touring", "cruiser", "street bike", "sportbike", "bagger"], "Snowmobile": ["snowmobile", "snowmobiles", "sled", "sleds"], "UTV/Side-by-Side": ["utv", "utvs", "side-by-side", "side by side", "sxs"]}}'::jsonb
+)
+on conflict (slug) do update
+  set name = excluded.name, description = excluded.description,
+      config = excluded.config, status = 'active';
+
+-- Retain, do not delete, the legacy service.
+update services set status = 'inactive' where slug = '3pl';
+
+-- ---------------------------------------------------------------------
+-- 3. SIGNALS + WEIGHTS  (18)
+-- ---------------------------------------------------------------------
+insert into service_signals
+  (service_id, signal_type, signal_name, description, weight, decay_days, max_occurrences)
+select s.id, v.signal_type, v.signal_name, v.description, v.weight, v.decay_days, v.max_occ
+from services s,
+(values
+ ('active_product_rfq','Active Product RFQ','Public request for quotes or a specific product requirement directed at suppliers',35,90,1),
+ ('explicit_supplier_search','Explicit Supplier Search','Distributor explicitly asks for new suppliers, manufacturers, products or brands',30,120,1),
+ ('supplier_application_open','Supplier Application Open','A genuine supplier or vendor submission process exists. Proves openness to proposals, not an active sourcing project. Revalidated every 180 days by re-crawl',22,180,1),
+ ('new_distribution_partnership','New Distribution Partnership','Newly signed distribution agreement with a manufacturer or brand',27,180,1),
+ ('new_brand_added','New Brand Added','A new aftermarket brand was added to the distributor portfolio',25,180,1),
+ ('product_category_expansion','Product Category Expansion','Expansion into a new product category or a material range increase',23,180,1),
+ ('new_product_line_launch','New Product Line Launch','Upcoming or recently launched product lines',18,150,1),
+ ('catalog_or_linecard_expansion','Catalog or Line Card Expansion','Material category or brand expansion in the current catalog or line card',15,180,1),
+ ('category_buyer_hiring','Category Buyer Hiring','Hiring category managers, buyers or merchandise managers who own assortment',17,120,1),
+ ('procurement_hiring','Procurement Hiring','Hiring purchasing, sourcing or procurement professionals',15,120,1),
+ ('distribution_center_expansion','Distribution Center Expansion','New warehouse, distribution centre or major inventory-capacity expansion',13,270,1),
+ ('dealer_network_expansion','Dealer Network Expansion','Entering new territories or materially expanding B2B dealer coverage',12,180,1),
+ ('acquisition_or_distribution_expansion','Acquisition or Distribution Expansion','Acquired a distributor, added regional distribution or materially expanded operations',12,270,1),
+ ('powersports_participation','Powersports Participation','Verifiable participation in the powersports aftermarket',5,null,1),
+ ('b2b_dealer_distribution','B2B Dealer Distribution','Supplies dealers or resellers - the distributor-to-dealer direction. Fit, not buying intent',6,null,1),
+ ('manufacturer_seeking_distribution','Manufacturer Seeking Distribution','The company is looking for distributors for its own products - the opposite direction',-25,null,1),
+ ('retail_only_operation','Retail-Only Operation','Consumer showroom or unit-sales language with no wholesale operation',-15,null,1),
+ ('service_repair_operation','Service or Repair Operation','Repair or service business rather than a distributor',-12,null,1)
+) as v(signal_type, signal_name, description, weight, decay_days, max_occ)
+where s.slug = 'powersports_aftermarket_sourcing'
+on conflict (service_id, signal_type) do update
+  set weight = excluded.weight,
+      decay_days = excluded.decay_days,
+      signal_name = excluded.signal_name,
+      description = excluded.description;
+
+-- ---------------------------------------------------------------------
+-- 4. KEYWORDS  (219)
+-- ---------------------------------------------------------------------
+insert into service_keywords (service_id, keyword, category, signal_type, weight)
+select s.id, v.keyword, v.category, v.signal_type, v.weight
+from services s,
+(values
+ ('request for quote','intent','active_product_rfq',1),
+ ('request for quotation','intent','active_product_rfq',1),
+ ('rfq','intent','active_product_rfq',1),
+ ('request for proposal','intent','active_product_rfq',1),
+ ('seeking quotes','intent','active_product_rfq',1),
+ ('looking to source','intent','active_product_rfq',1),
+ ('now sourcing','intent','active_product_rfq',1),
+ ('we are sourcing','intent','active_product_rfq',1),
+ ('sourcing request','intent','active_product_rfq',1),
+ ('quotes from manufacturers','intent','active_product_rfq',1),
+ ('quotes from suppliers','intent','active_product_rfq',1),
+ ('looking for new suppliers','intent','explicit_supplier_search',1),
+ ('seeking new suppliers','intent','explicit_supplier_search',1),
+ ('looking for suppliers','intent','explicit_supplier_search',1),
+ ('seeking suppliers','intent','explicit_supplier_search',1),
+ ('new supplier opportunities','intent','explicit_supplier_search',1),
+ ('looking for new products','intent','explicit_supplier_search',1),
+ ('seeking new products','intent','explicit_supplier_search',1),
+ ('looking for new brands','intent','explicit_supplier_search',1),
+ ('seeking new brands','intent','explicit_supplier_search',1),
+ ('submit your product','intent','explicit_supplier_search',1),
+ ('submit your products','intent','explicit_supplier_search',1),
+ ('submit your catalog','intent','explicit_supplier_search',1),
+ ('submit your product catalog','intent','explicit_supplier_search',1),
+ ('product catalog for consideration','intent','explicit_supplier_search',1),
+ ('products for consideration','intent','explicit_supplier_search',1),
+ ('accepting new vendors','intent','explicit_supplier_search',1),
+ ('accepting new suppliers','intent','explicit_supplier_search',1),
+ ('accepting new brands','intent','explicit_supplier_search',1),
+ ('looking for manufacturers','intent','explicit_supplier_search',1),
+ ('seeking manufacturers','intent','explicit_supplier_search',1),
+ ('new vendor partners','intent','explicit_supplier_search',1),
+ ('interested in becoming a supplier','intent','explicit_supplier_search',1),
+ ('interested in becoming a vendor','intent','explicit_supplier_search',1),
+ ('supplier application','intent','supplier_application_open',1),
+ ('vendor application','intent','supplier_application_open',1),
+ ('new vendor application','intent','supplier_application_open',1),
+ ('vendor inquiry form','intent','supplier_application_open',1),
+ ('supplier inquiry','intent','supplier_application_open',1),
+ ('become a supplier','intent','supplier_application_open',1),
+ ('become a vendor','intent','supplier_application_open',1),
+ ('vendor submission','intent','supplier_application_open',1),
+ ('supplier submission','intent','supplier_application_open',1),
+ ('vendor onboarding','intent','supplier_application_open',1),
+ ('new vendor setup','intent','supplier_application_open',1),
+ ('vendor information form','intent','supplier_application_open',1),
+ ('supplier registration','intent','supplier_application_open',1),
+ ('vendor registration','intent','supplier_application_open',1),
+ ('prospective vendors','intent','supplier_application_open',1),
+ ('prospective suppliers','intent','supplier_application_open',1),
+ ('product submission form','intent','supplier_application_open',1),
+ ('new brand submission','intent','supplier_application_open',1),
+ ('distribution agreement','expansion','new_distribution_partnership',1),
+ ('distribution partnership','expansion','new_distribution_partnership',1),
+ ('exclusive distribution','expansion','new_distribution_partnership',1),
+ ('exclusive distributor for','expansion','new_distribution_partnership',1),
+ ('exclusive distribution rights','expansion','new_distribution_partnership',1),
+ ('agreement to distribute','expansion','new_distribution_partnership',1),
+ ('will now distribute','expansion','new_distribution_partnership',1),
+ ('now distributing','expansion','new_distribution_partnership',1),
+ ('now distributes','expansion','new_distribution_partnership',1),
+ ('named exclusive distributor','expansion','new_distribution_partnership',1),
+ ('appointed as distributor','expansion','new_distribution_partnership',1),
+ ('distribution deal','expansion','new_distribution_partnership',1),
+ ('master distributor for','expansion','new_distribution_partnership',1),
+ ('partnered with','expansion','new_distribution_partnership',0.6),
+ ('new partnership with','expansion','new_distribution_partnership',0.6),
+ ('announces partnership','expansion','new_distribution_partnership',0.6),
+ ('added to our lineup','expansion','new_brand_added',1),
+ ('added to its lineup','expansion','new_brand_added',1),
+ ('adds brand','expansion','new_brand_added',1),
+ ('joins our brand portfolio','expansion','new_brand_added',1),
+ ('joins our lineup','expansion','new_brand_added',1),
+ ('now carrying','expansion','new_brand_added',1),
+ ('now carries','expansion','new_brand_added',1),
+ ('now stocking','expansion','new_brand_added',1),
+ ('newest brand','expansion','new_brand_added',1),
+ ('new to our line','expansion','new_brand_added',1),
+ ('added to our line card','expansion','new_brand_added',1),
+ ('adds new brands','expansion','new_brand_added',1),
+ ('expands brand portfolio','expansion','new_brand_added',1),
+ ('expanded brand portfolio','expansion','new_brand_added',1),
+ ('new brand','expansion','new_brand_added',0.7),
+ ('new brands','expansion','new_brand_added',0.7),
+ ('expands its product','expansion','product_category_expansion',1),
+ ('expanded product offering','expansion','product_category_expansion',1),
+ ('expanding our product','expansion','product_category_expansion',1),
+ ('new product category','expansion','product_category_expansion',1),
+ ('new product categories','expansion','product_category_expansion',1),
+ ('expanded its catalog','expansion','product_category_expansion',1),
+ ('expands catalog','expansion','product_category_expansion',1),
+ ('expanded assortment','expansion','product_category_expansion',1),
+ ('expands assortment','expansion','product_category_expansion',1),
+ ('expansion into','expansion','product_category_expansion',1),
+ ('expanding into','expansion','product_category_expansion',1),
+ ('broadens its product','expansion','product_category_expansion',1),
+ ('new product line','expansion','new_product_line_launch',0.8),
+ ('new product lines','expansion','new_product_line_launch',0.8),
+ ('launches new','expansion','new_product_line_launch',0.8),
+ ('introduces new','expansion','new_product_line_launch',0.8),
+ ('new for 2026','expansion','new_product_line_launch',0.8),
+ ('new for 2027','expansion','new_product_line_launch',0.8),
+ ('product launch','expansion','new_product_line_launch',0.8),
+ ('new products for','expansion','new_product_line_launch',0.8),
+ ('line card','expansion','catalog_or_linecard_expansion',0.8),
+ ('linecard','expansion','catalog_or_linecard_expansion',0.8),
+ ('new catalog','expansion','catalog_or_linecard_expansion',0.8),
+ ('2026 catalog','expansion','catalog_or_linecard_expansion',0.8),
+ ('2027 catalog','expansion','catalog_or_linecard_expansion',0.8),
+ ('catalog expansion','expansion','catalog_or_linecard_expansion',0.8),
+ ('new skus','expansion','catalog_or_linecard_expansion',0.8),
+ ('new part numbers','expansion','catalog_or_linecard_expansion',0.8),
+ ('thousands of new parts','expansion','catalog_or_linecard_expansion',0.8),
+ ('category manager','hiring','category_buyer_hiring',1),
+ ('product buyer','hiring','category_buyer_hiring',1),
+ ('buyer','hiring','category_buyer_hiring',1),
+ ('senior buyer','hiring','category_buyer_hiring',1),
+ ('associate buyer','hiring','category_buyer_hiring',1),
+ ('category buyer','hiring','category_buyer_hiring',1),
+ ('merchandise manager','hiring','category_buyer_hiring',1),
+ ('merchandising manager','hiring','category_buyer_hiring',1),
+ ('assortment manager','hiring','category_buyer_hiring',1),
+ ('product line manager','hiring','category_buyer_hiring',1),
+ ('merchandise planner','hiring','category_buyer_hiring',1),
+ ('purchasing manager','hiring','procurement_hiring',1),
+ ('purchasing agent','hiring','procurement_hiring',1),
+ ('purchasing director','hiring','procurement_hiring',1),
+ ('director of purchasing','hiring','procurement_hiring',1),
+ ('procurement manager','hiring','procurement_hiring',1),
+ ('procurement specialist','hiring','procurement_hiring',1),
+ ('sourcing manager','hiring','procurement_hiring',1),
+ ('sourcing specialist','hiring','procurement_hiring',1),
+ ('strategic sourcing','hiring','procurement_hiring',1),
+ ('vendor manager','hiring','procurement_hiring',1),
+ ('vendor relations','hiring','procurement_hiring',1),
+ ('purchasing coordinator','hiring','procurement_hiring',1),
+ ('inventory buyer','hiring','procurement_hiring',1),
+ ('purchasing analyst','hiring','procurement_hiring',1),
+ ('new distribution center','capacity','distribution_center_expansion',1),
+ ('new distribution centre','capacity','distribution_center_expansion',1),
+ ('new warehouse','capacity','distribution_center_expansion',1),
+ ('opens distribution center','capacity','distribution_center_expansion',1),
+ ('opened a new distribution','capacity','distribution_center_expansion',1),
+ ('warehouse expansion','capacity','distribution_center_expansion',1),
+ ('expanded warehouse','capacity','distribution_center_expansion',1),
+ ('expands distribution center','capacity','distribution_center_expansion',1),
+ ('additional distribution center','capacity','distribution_center_expansion',1),
+ ('square-foot distribution','capacity','distribution_center_expansion',1),
+ ('square foot distribution','capacity','distribution_center_expansion',1),
+ ('square-foot warehouse','capacity','distribution_center_expansion',1),
+ ('square foot warehouse','capacity','distribution_center_expansion',1),
+ ('new facility','capacity','distribution_center_expansion',0.6),
+ ('breaks ground','capacity','distribution_center_expansion',0.6),
+ ('expands dealer network','capacity','dealer_network_expansion',1),
+ ('expanding our dealer network','capacity','dealer_network_expansion',1),
+ ('expanded its dealer network','capacity','dealer_network_expansion',1),
+ ('growing dealer network','capacity','dealer_network_expansion',1),
+ ('new sales territory','capacity','dealer_network_expansion',1),
+ ('new territories','capacity','dealer_network_expansion',1),
+ ('expanded coverage','capacity','dealer_network_expansion',1),
+ ('new dealer accounts','capacity','dealer_network_expansion',1),
+ ('has acquired','capacity','acquisition_or_distribution_expansion',1),
+ ('completed the acquisition','capacity','acquisition_or_distribution_expansion',1),
+ ('acquisition of','capacity','acquisition_or_distribution_expansion',1),
+ ('acquires','capacity','acquisition_or_distribution_expansion',1),
+ ('merges with','capacity','acquisition_or_distribution_expansion',1),
+ ('regional distribution capabilities','capacity','acquisition_or_distribution_expansion',1),
+ ('adds distribution','capacity','acquisition_or_distribution_expansion',1),
+ ('powersports','fit','powersports_participation',0.9),
+ ('power sports','fit','powersports_participation',0.9),
+ ('atv','fit','powersports_participation',0.9),
+ ('utv','fit','powersports_participation',0.9),
+ ('side-by-side','fit','powersports_participation',0.9),
+ ('sxs','fit','powersports_participation',0.9),
+ ('motorcycle','fit','powersports_participation',0.9),
+ ('dirt bike','fit','powersports_participation',0.9),
+ ('motocross','fit','powersports_participation',0.9),
+ ('snowmobile','fit','powersports_participation',0.9),
+ ('v-twin','fit','powersports_participation',0.9),
+ ('become a dealer','fit','b2b_dealer_distribution',0.9),
+ ('dealer application','fit','b2b_dealer_distribution',0.9),
+ ('authorized dealers','fit','b2b_dealer_distribution',0.9),
+ ('dealer network','fit','b2b_dealer_distribution',0.9),
+ ('dealer portal','fit','b2b_dealer_distribution',0.9),
+ ('dealer login','fit','b2b_dealer_distribution',0.9),
+ ('wholesale distributor','fit','b2b_dealer_distribution',0.9),
+ ('dealer pricing','fit','b2b_dealer_distribution',0.9),
+ ('independent dealers','fit','b2b_dealer_distribution',0.9),
+ ('serving dealers','fit','b2b_dealer_distribution',0.9),
+ ('dealer support','fit','b2b_dealer_distribution',0.9),
+ ('wholesale only','fit','b2b_dealer_distribution',0.9),
+ ('dealers only','fit','b2b_dealer_distribution',0.9),
+ ('trade only','fit','b2b_dealer_distribution',0.9),
+ ('looking for distributors','negative','manufacturer_seeking_distribution',1),
+ ('looking for a distributor','negative','manufacturer_seeking_distribution',1),
+ ('seeking distributors','negative','manufacturer_seeking_distribution',1),
+ ('seeking a distributor','negative','manufacturer_seeking_distribution',1),
+ ('become a distributor','negative','manufacturer_seeking_distribution',1),
+ ('distributor inquiries','negative','manufacturer_seeking_distribution',1),
+ ('distributor opportunities','negative','manufacturer_seeking_distribution',1),
+ ('distributors wanted','negative','manufacturer_seeking_distribution',1),
+ ('seeking a us distributor','negative','manufacturer_seeking_distribution',1),
+ ('looking for a us distributor','negative','manufacturer_seeking_distribution',1),
+ ('distribute our products','negative','manufacturer_seeking_distribution',1),
+ ('interested in distributing our products','negative','manufacturer_seeking_distribution',1),
+ ('visit our showroom','negative','retail_only_operation',0.9),
+ ('new and used','negative','retail_only_operation',0.9),
+ ('pre-owned inventory','negative','retail_only_operation',0.9),
+ ('schedule a test ride','negative','retail_only_operation',0.9),
+ ('showroom hours','negative','retail_only_operation',0.9),
+ ('browse our inventory','negative','retail_only_operation',0.9),
+ ('used inventory','negative','retail_only_operation',0.9),
+ ('value your trade','negative','retail_only_operation',0.9),
+ ('schedule service','negative','service_repair_operation',0.9),
+ ('service appointment','negative','service_repair_operation',0.9),
+ ('repair shop','negative','service_repair_operation',0.9),
+ ('our service department','negative','service_repair_operation',0.9),
+ ('we repair','negative','service_repair_operation',0.9),
+ ('service specials','negative','service_repair_operation',0.9)
+) as v(keyword, category, signal_type, weight)
+where s.slug = 'powersports_aftermarket_sourcing'
+on conflict (service_id, keyword, category) do update
+  set weight = excluded.weight, signal_type = excluded.signal_type;
+
+-- ---------------------------------------------------------------------
+-- 5. DECISION-MAKER ROLES  (46)
+-- ---------------------------------------------------------------------
+insert into service_roles (service_id, title_pattern, role_priority)
+select s.id, v.pattern, v.prio
+from services s,
+(values
+ ('vp of purchasing',1),
+ ('vice president of purchasing',1),
+ ('vp purchasing',1),
+ ('vice president, purchasing',1),
+ ('director of purchasing',1),
+ ('purchasing director',1),
+ ('head of purchasing',1),
+ ('chief purchasing officer',1),
+ ('director of procurement',1),
+ ('vp of procurement',1),
+ ('head of procurement',1),
+ ('purchasing manager',2),
+ ('category manager',2),
+ ('senior category manager',2),
+ ('director of category management',2),
+ ('merchandising director',2),
+ ('director of merchandising',2),
+ ('vp of merchandising',2),
+ ('vp of product',3),
+ ('vice president of product',3),
+ ('director of product',3),
+ ('product line manager',3),
+ ('head of product',3),
+ ('product manager',4),
+ ('procurement manager',4),
+ ('sourcing manager',4),
+ ('director of sourcing',4),
+ ('vendor relations manager',4),
+ ('vendor manager',4),
+ ('senior buyer',4),
+ ('buyer',5),
+ ('purchasing agent',5),
+ ('owner',6),
+ ('co-owner',6),
+ ('president',6),
+ ('ceo',6),
+ ('chief executive officer',6),
+ ('founder',7),
+ ('co-founder',7),
+ ('coo',8),
+ ('chief operating officer',8),
+ ('general manager',9),
+ ('director of business development',10),
+ ('vp of business development',10),
+ ('business development manager',11),
+ ('vice president',12)
+) as v(pattern, prio)
+where s.slug = 'powersports_aftermarket_sourcing'
+on conflict (service_id, title_pattern) do update set role_priority = excluded.role_priority;
+
+-- ---------------------------------------------------------------------
+-- 6. DISCOVERY QUERIES  (98: {1: 22, 2: 36, 3: 30, 4: 10})
+-- ---------------------------------------------------------------------
+insert into discovery_queries (service_id, query, country, priority)
+select s.id, v.query, v.country, v.priority
+from services s,
+(values
+ ('powersports distributor seeking new suppliers', 'US', 1),
+ ('powersports distributor supplier application', 'US', 1),
+ ('aftermarket parts distributor new brand submissions', 'US', 1),
+ ('powersports wholesaler looking for manufacturers', 'US', 1),
+ ('distributor sourcing new ATV accessories', 'US', 1),
+ ('powersports distributor vendor application', 'US', 1),
+ ('motorcycle parts distributor become a vendor', 'US', 1),
+ ('powersports distributor submit your products', 'US', 1),
+ ('UTV accessories distributor new vendor application', 'US', 1),
+ ('powersports distributor accepting new brands', 'US', 1),
+ ('motorcycle aftermarket distributor product submission', 'US', 1),
+ ('powersports distributor RFQ aftermarket products', 'US', 1),
+ ('"powersports distributor" "vendor application"', 'US', 1),
+ ('"powersports distributor" "new suppliers"', 'US', 1),
+ ('"powersports wholesale distributor" "vendor application"', 'US', 1),
+ ('"powersports wholesale distributor" "new suppliers"', 'US', 1),
+ ('"motorcycle parts distributor" "vendor application"', 'US', 1),
+ ('"motorcycle parts distributor" "new suppliers"', 'US', 1),
+ ('"ATV UTV aftermarket distributor" "vendor application"', 'US', 1),
+ ('"ATV UTV aftermarket distributor" "new suppliers"', 'US', 1),
+ ('"aftermarket parts distributor" "vendor application"', 'US', 1),
+ ('"aftermarket parts distributor" "new suppliers"', 'US', 1),
+ ('motorcycle parts distributor new product lines', 'US', 2),
+ ('distributor adding new UTV product categories', 'US', 2),
+ ('powersports distributor distribution agreement', 'US', 2),
+ ('motorcycle aftermarket distributor expanding product portfolio', 'US', 2),
+ ('UTV accessories distributor partnership announcement', 'US', 2),
+ ('powersports distributor adds new brands', 'US', 2),
+ ('powersports distributor exclusive distribution rights', 'US', 2),
+ ('powersports distributor new brand partnership 2026', 'US', 2),
+ ('UTV accessories distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds UTV accessories brand', 'US', 2),
+ ('motorcycle crash protection distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds motorcycle crash protection brand', 'US', 2),
+ ('ATV tires distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds ATV tires brand', 'US', 2),
+ ('UTV tires distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds UTV tires brand', 'US', 2),
+ ('powersports batteries distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds powersports batteries brand', 'US', 2),
+ ('UTV windshields distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds UTV windshields brand', 'US', 2),
+ ('motorcycle apparel distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds motorcycle apparel brand', 'US', 2),
+ ('off-road performance parts distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds off-road performance parts brand', 'US', 2),
+ ('motorcycle luggage distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds motorcycle luggage brand', 'US', 2),
+ ('UTV lighting distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds UTV lighting brand', 'US', 2),
+ ('motorcycle helmets distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds motorcycle helmets brand', 'US', 2),
+ ('powersports lubricants distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds powersports lubricants brand', 'US', 2),
+ ('UTV cab enclosures distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds UTV cab enclosures brand', 'US', 2),
+ ('winches distribution agreement powersports distributor', 'US', 2),
+ ('distributor adds winches brand', 'US', 2),
+ ('powersports aftermarket parts distributors USA', 'US', 3),
+ ('powersports wholesale distributors', 'US', 3),
+ ('motorcycle parts wholesale distributors', 'US', 3),
+ ('ATV UTV aftermarket distributors', 'US', 3),
+ ('side by side accessories wholesale distributors', 'US', 3),
+ ('motorcycle apparel wholesale distributors', 'US', 3),
+ ('motocross parts distributors', 'US', 3),
+ ('snowmobile parts wholesalers', 'US', 3),
+ ('regional powersports parts distributors', 'US', 3),
+ ('powersports dealer wholesale suppliers', 'US', 3),
+ ('aftermarket accessories distribution companies', 'US', 3),
+ ('independent motorcycle dealer distributors', 'US', 3),
+ ('V-twin parts wholesale distributor', 'US', 3),
+ ('off-road parts wholesale distributor', 'US', 3),
+ ('UTV accessories wholesale distributor dealers only', 'US', 3),
+ ('powersports tire wholesale distributor', 'US', 3),
+ ('motorcycle riding gear distributor dealers', 'US', 3),
+ ('powersports parts distributor dealer network', 'US', 3),
+ ('powersports parts distributor Texas', 'US', 3),
+ ('powersports parts distributor California', 'US', 3),
+ ('powersports parts distributor Minnesota', 'US', 3),
+ ('powersports parts distributor Wisconsin', 'US', 3),
+ ('powersports parts distributor Pennsylvania', 'US', 3),
+ ('powersports parts distributor Georgia', 'US', 3),
+ ('powersports parts distributor Ohio', 'US', 3),
+ ('powersports parts distributor Florida', 'US', 3),
+ ('powersports parts distributor Michigan', 'US', 3),
+ ('powersports parts distributor Utah', 'US', 3),
+ ('powersports distributor line card brands we carry', 'US', 3),
+ ('motorcycle parts distributor dealer portal login', 'US', 3),
+ ('powersports product category manager hiring', 'US', 4),
+ ('powersports distributor purchasing manager jobs', 'US', 4),
+ ('aftermarket distributor procurement hiring', 'US', 4),
+ ('powersports distributor buyer job', 'US', 4),
+ ('motorcycle parts distributor category manager job', 'US', 4),
+ ('powersports distributor new warehouse expansion', 'US', 4),
+ ('powersports distributor new distribution center', 'US', 4),
+ ('powersports distributor acquires distributor', 'US', 4),
+ ('motorcycle parts distributor acquisition', 'US', 4),
+ ('powersports distributor expands dealer network', 'US', 4)
+) as v(query, country, priority)
+where s.slug = 'powersports_aftermarket_sourcing'
+  and not exists (
+    select 1 from discovery_queries dq
+    where dq.service_id = s.id and dq.query = v.query
+      and dq.country is not distinct from v.country);
+
+-- Verify:
+-- select slug, status from services;
+-- select priority as tier, count(*) from discovery_queries dq
+--   join services s on s.id = dq.service_id
+--   where s.slug = 'powersports_aftermarket_sourcing' group by priority order by priority;

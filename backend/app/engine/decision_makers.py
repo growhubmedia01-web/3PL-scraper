@@ -26,28 +26,33 @@ from app.utils.text import clean_text
 
 log = logging.getLogger(__name__)
 
+# Title vocabulary shared by every pattern. Generic: covers operations,
+# purchasing, product and executive titles alike; which of them matter is
+# decided per service by service_roles, not here.
+_OF_TAIL = r"(?:,?\s+(?:of\s+)?[A-Z][A-Za-z&/]+(?:\s+(?:and\s+|&\s+)?[A-Z][A-Za-z&/]+){0,3})"
+_TITLE = (
+    r"(?:Founder|Co-?Founder|Owner|Co-?Owner|CEO|COO|CTO|CFO|CPO|"
+    r"Chief [A-Z][a-z]+ Officer|President|Managing Director|General Manager|"
+    r"Director" + _OF_TAIL + r"|Director|"
+    r"Head of [A-Z][A-Za-z ]{2,30}|"
+    r"VP" + _OF_TAIL + r"|Vice President" + _OF_TAIL + r"?|"
+    r"[A-Z][A-Za-z ]{2,30}? Manager|[A-Z][A-Za-z ]{2,30}? Buyer)")
+
 # "Jane Smith, COO" / "Jane Smith - Head of Operations" / "Jane Smith | Founder"
 NAME_THEN_TITLE = re.compile(
     r"\b([A-Z][a-z'’-]{1,19}(?:\s+[A-Z][a-z'’-]{1,19}){1,2})\s*[,\-–—|]\s*"
-    r"((?:[A-Z][A-Za-z&/\. ]{2,48})?(?:Founder|Co-?Founder|CEO|COO|CTO|CFO|"
-    r"Chief [A-Z][a-z]+ Officer|President|Managing Director|Director|"
-    r"Head of [A-Z][A-Za-z ]{2,30}|VP [A-Z][A-Za-z ]{2,30}|"
-    r"Vice President[A-Za-z ]{0,30}|[A-Z][A-Za-z ]{2,30}? Manager))\b")
+    r"((?:[A-Z][A-Za-z&/\. ]{2,48}?)??" + _TITLE + r")\b")
 
 # "COO, Jane Smith" / "Head of Operations: Jane Smith"
 TITLE_THEN_NAME = re.compile(
-    r"\b((?:Founder|Co-?Founder|CEO|COO|CTO|CFO|President|Managing Director|"
-    r"Head of [A-Z][A-Za-z ]{2,30}|VP [A-Z][A-Za-z ]{2,30}|"
-    r"[A-Z][A-Za-z ]{2,30}? Manager))\s*[,:\-–—]\s*"
+    r"\b(" + _TITLE + r")\s*[,:\-–—]\s*"
     r"([A-Z][a-z'’-]{1,19}(?:\s+[A-Z][a-z'’-]{1,19}){1,2})\b")
 
 # "said Jane Smith, COO of Example Brand"
 QUOTE_ATTRIBUTION = re.compile(
     r"\b(?:said|says|according to|commented|added)\s+"
     r"([A-Z][a-z'’-]{1,19}(?:\s+[A-Z][a-z'’-]{1,19}){1,2}),?\s+"
-    r"(?:the\s+)?((?:Founder|Co-?Founder|CEO|COO|CTO|CFO|President|"
-    r"Managing Director|Head of [A-Z][A-Za-z ]{2,30}|"
-    r"[A-Z][A-Za-z ]{2,30}? Manager))")
+    r"(?:the\s+)?(?:company's\s+)?(" + _TITLE + r")")
 
 # Words that look like names but aren't people.
 NAME_STOPWORDS = {

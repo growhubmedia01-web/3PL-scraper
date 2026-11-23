@@ -17,6 +17,35 @@ export interface DashboardStats {
   by_intent: { intent_level: string; count: number }[]
   by_signal: { signal_type: string; count: number }[]
   by_business_model?: { business_model: string; count: number }[]
+  by_company_type?: { company_type: string; count: number }[]
+  by_employee_band?: { employee_band: string; count: number }[]
+  by_product_category?: { category: string; count: number }[]
+  by_interest_type?: { interest_type: string; count: number }[]
+}
+
+export type InterestType =
+  'EXPLICITLY_SEEKING' | 'RECENTLY_ADDED' | 'CURRENTLY_CARRIED' | 'INFERRED_FIT'
+
+export interface ProductInterest {
+  id: string; interest_type: InterestType; signal_type: string | null
+  category: string | null; subcategory: string | null; products: string[]
+  vehicle_segments: string[]; vehicle_platforms: string[]
+  brand: string | null; reason: string | null; source_url: string | null
+  published_at: string | null; event_date: string | null
+  evidence: string | null; confidence: number
+}
+
+export interface CompanyFact {
+  id: string; fact_type: string; value: string; source_url: string | null
+  evidence: string | null; confidence: number; is_estimate: boolean
+  observed_at: string
+}
+
+export interface Taxonomy {
+  product_taxonomy: Record<string, string[]>
+  vehicle_segments: string[]; vehicle_platforms: string[]
+  company_types: string[]; employee_bands: string[]
+  signals: { signal_type: string; signal_name: string; dimension: string }[]
 }
 
 export interface Lead {
@@ -30,6 +59,11 @@ export interface Lead {
   decision_maker_name: string | null; decision_maker_title: string | null
   decision_maker_confidence: number | null; has_decision_maker: boolean
   last_analyzed: string | null; created_at: string
+  headquarters?: string | null; headquarters_state?: string | null
+  employee_band?: string | null; company_type?: string | null
+  latest_signal_type?: string | null; latest_signal_at?: string | null
+  product_categories?: string[]; product_demand_summary?: string | null
+  confidence?: number | null
 }
 
 export interface Paginated<T> {
@@ -68,6 +102,12 @@ export interface Company {
   is_ecommerce: boolean | null; is_physical_product: boolean | null
   platform: string | null; business_model: string | null
   sales_channels: string[]
+  company_type?: string | null; company_type_confidence?: number | null
+  company_type_evidence?: { scores?: Record<string, number>; markers?: string[]; industry?: string[] }
+  employee_count?: number | null; employee_band?: string | null
+  size_confidence?: number | null; size_source_url?: string | null
+  size_observed_at?: string | null
+  headquarters?: string | null; headquarters_state?: string | null
   status: string; rejection_reason: string | null
   discovered_via: string | null; last_crawled_at: string | null
   created_at: string
@@ -89,6 +129,10 @@ export interface LeadDetail {
   decision_makers: DecisionMaker[]
   score_breakdown: ScoreLine[]
   ai_analysis: Record<string, unknown> | null
+  product_interests?: ProductInterest[]
+  company_facts?: CompanyFact[]
+  product_demand_summary?: string | null
+  signal_dimensions?: Record<string, string>
 }
 
 export interface Health {

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
@@ -36,6 +37,8 @@ class AIAnalysis(BaseModel):
     reasoning: str = ""
     confidence: float = Field(0.5, ge=0.0, le=1.0)
     evidence_gaps: list[str] = Field(default_factory=list)
+    # Service-specific structured output declared in config['ai_extra_fields'].
+    extra: dict = Field(default_factory=dict)
 
     @field_validator("urgency")
     @classmethod
@@ -55,7 +58,8 @@ class AIAnalysis(BaseModel):
 
 
 def _build_prompt(company: Company, signals: list[Signal],
-                  sources: list[Source], config: ServiceConfig) -> str:
+                  sources: list[Source], config: ServiceConfig,
+                  context_lines: list[str] | None = None) -> str:
     signal_lines = []
     for signal in signals:
         signal_lines.append(
@@ -72,6 +76,15 @@ def _build_prompt(company: Company, signals: list[Signal],
         budget -= len(chunk)
         evidence_lines.append(chunk)
 
+    task = config.ai_task or (
+        f'Assess how likely this company is to need "{config.name}" services.')
+    context_block = ""
+    if context_lines:
+        context_block = ("STRUCTURED EVIDENCE (extracted deterministically)\n"
+                         + "\n".join(context_lines) + "\n\n")
+    extra_schema = "".join(
+        f',\n  "{name}": {desc}' for name, desc in config.ai_extra_fields.items())
+
     return f"""SERVICE BEING ASSESSED: {config.name}
 {config.description or ""}
 
@@ -83,16 +96,19 @@ COMPANY
   Platform (detected): {company.platform or "unknown"}
   Ecommerce (detected): {company.is_ecommerce}
   Physical products (detected): {company.is_physical_product}
+  Company type (detected): {company.company_type or "unknown"}
+  Employee band (company-published only): {company.employee_band or "unknown"}
+  Headquarters (detected): {company.headquarters or "unknown"}
   Description: {truncate(company.description, 600)}
 
 DETECTED SIGNALS
 {chr(10).join(signal_lines) or "  (none)"}
 
-SOURCE EVIDENCE
+{context_block}SOURCE EVIDENCE
 {chr(10).join(evidence_lines) or "  (none)"}
 
 TASK
-Assess how likely this company is to need "{config.name}" services.
+{task}
 
 Rules:
 1. Use ONLY the evidence above. Do not use outside knowledge about this company.
@@ -100,6 +116,8 @@ Rules:
    what is missing in evidence_gaps. Do not speculate to fill gaps.
 3. reasoning must cite the specific evidence that drove your conclusion.
 4. target_markets must be countries or regions the evidence actually mentions.
+5. Every item in a list field must be stated in the evidence above. A general
+   growth statement is not evidence of a specific purchasing requirement.
 
 Return ONLY valid JSON matching this schema:
 {{
@@ -111,12 +129,61 @@ Return ONLY valid JSON matching this schema:
   "target_markets": [string],
   "reasoning": string,
   "confidence": number between 0 and 1,
-  "evidence_gaps": [string]
+  "evidence_gaps": [string]{extra_schema}
 }}"""
 
 
+def _corpus(signals: list[Signal], sources: list[Source],
+            context_lines: list[str] | None) -> str:
+    parts = [s.evidence or "" for s in signals]
+    parts += [(src.excerpt or "") + " " + (src.content or "")[:4000]
+              for src in sources]
+    parts += list(context_lines or [])
+    return " ".join(parts).lower()
+
+
+def _grounded(item: str, corpus: str) -> bool:
+    """An AI claim is grounded if it appears in the evidence, or every
+    significant word of it does."""
+    low = item.lower().strip()
+    if not low:
+        return False
+    if low in corpus:
+        return True
+    words = [w for w in re.findall(r"[a-z0-9][a-z0-9\-]+", low) if len(w) > 3]
+    stems = [w[:-1] if w.endswith("s") else w for w in words]
+    return bool(stems) and all(stem in corpus for stem in stems)
+
+
+def ground_analysis(analysis: "AIAnalysis", config: ServiceConfig,
+                    corpus: str) -> "AIAnalysis":
+    """Drop list items the evidence does not support (anti-hallucination).
+    Applies to config['ai_grounded_fields'], core or extra fields alike."""
+    for name in config.ai_grounded_fields:
+        holder = analysis.extra if name in analysis.extra else None
+        values = holder.get(name) if holder is not None else getattr(
+            analysis, name, None)
+        if not isinstance(values, list):
+            continue
+        kept, dropped = [], []
+        for value in values:
+            text = value if isinstance(value, str) else " ".join(
+                str(v) for v in (value.values() if isinstance(value, dict)
+                                 else [value]))
+            (kept if _grounded(text, corpus) else dropped).append(value)
+        if holder is not None:
+            holder[name] = kept
+        else:
+            setattr(analysis, name, kept)
+        for value in dropped:
+            analysis.evidence_gaps.append(
+                f"Removed ungrounded {name} claim: {str(value)[:80]}")
+    return analysis
+
+
 def analyze(db: Session, company: Company, signals: list[Signal],
-            sources: list[Source], config: ServiceConfig) -> AIAnalysis | None:
+            sources: list[Source], config: ServiceConfig,
+            context_lines: list[str] | None = None) -> AIAnalysis | None:
     """Returns None when no LLM is configured or the call fails after all
     fallbacks - the pipeline continues on deterministic scoring alone (§55)."""
     llm = LLMService(db)
@@ -127,7 +194,8 @@ def analyze(db: Session, company: Company, signals: list[Signal],
     try:
         response = llm.complete(
             system=config.ai_system_prompt,
-            user=_build_prompt(company, signals, sources, config),
+            user=_build_prompt(company, signals, sources, config,
+                               context_lines),
             json_mode=True, operation="analyze_company", company_id=company.id)
     except LLMError as exc:
         log.warning("AI analysis unavailable for %s: %s", company.domain, exc)
@@ -141,10 +209,20 @@ def analyze(db: Session, company: Company, signals: list[Signal],
 
     # Accept a few aliases so a model drifting on field names doesn't cost a run.
     aliases = (f"{config.slug}_probability", "probability",
-               "service_need_probability", "need_probability")
+               "service_need_probability", "need_probability",
+               config.raw_config.get("ai_probability_field") or "")
     for alias in aliases:
-        if alias in payload and "service_probability" not in payload:
+        if alias and alias in payload and "service_probability" not in payload:
             payload["service_probability"] = payload[alias]
+
+    if not isinstance(payload, dict):
+        log.warning("AI returned a non-object for %s", company.domain)
+        return None
+    extra = {name: payload.pop(name) for name in list(config.ai_extra_fields)
+             if name in payload}
+    known = set(AIAnalysis.model_fields)
+    payload = {k: v for k, v in payload.items() if k in known}
+    payload["extra"] = extra
 
     try:
         analysis = AIAnalysis(**payload)
@@ -154,15 +232,24 @@ def analyze(db: Session, company: Company, signals: list[Signal],
         return None
 
     # Guardrail: the model cannot claim high probability with no signals.
-    if not signals and analysis.service_probability > 0.4:
+    # With signal dimensions configured, only intent signals count - fit
+    # evidence ("is a distributor") is not evidence of buying.
+    if config.signal_dimensions:
+        supporting = [s for s in signals
+                      if config.dimension_of(s.signal_type) == "intent"
+                      and config.weight_for(s.signal_type) > 0]
+    else:
+        supporting = list(signals)
+    if not supporting and analysis.service_probability > 0.4:
         log.info("Clamping AI probability for %s: no supporting signals",
                  company.domain)
         analysis.service_probability = 0.2
         analysis.confidence = min(analysis.confidence, 0.3)
         analysis.evidence_gaps.append(
-            "No detected signals; probability clamped by guardrail")
+            "No detected intent signals; probability clamped by guardrail")
 
-    return analysis
+    return ground_analysis(analysis, config,
+                           _corpus(signals, sources, context_lines))
 
 
 def to_dict(analysis: AIAnalysis) -> dict:

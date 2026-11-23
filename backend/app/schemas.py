@@ -112,11 +112,50 @@ class CompanyOut(ORMBase):
     sales_channels: list[str] = []
     employee_count: int | None = None
     founded_year: int | None = None
+    company_type: str | None = None
+    company_type_confidence: float | None = None
+    company_type_evidence: dict = {}
+    employee_band: str | None = None
+    size_confidence: float | None = None
+    size_source_url: str | None = None
+    size_observed_at: datetime | None = None
+    headquarters: str | None = None
+    headquarters_state: str | None = None
     status: str
     rejection_reason: str | None = None
     discovered_via: str | None = None
     last_crawled_at: datetime | None = None
     created_at: datetime
+
+
+class CompanyFactOut(ORMBase):
+    id: str
+    fact_type: str
+    value: str
+    source_url: str | None = None
+    evidence: str | None = None
+    confidence: float
+    is_estimate: bool
+    observed_at: datetime
+
+
+class ProductInterestOut(ORMBase):
+    """Every row is traceable to a source (source_url)."""
+    id: str
+    interest_type: str
+    signal_type: str | None = None
+    category: str | None = None
+    subcategory: str | None = None
+    products: list[str] = []
+    vehicle_segments: list[str] = []
+    vehicle_platforms: list[str] = []
+    brand: str | None = None
+    reason: str | None = None
+    source_url: str | None = None
+    published_at: datetime | None = None
+    event_date: datetime | None = None
+    evidence: str | None = None
+    confidence: float
 
 
 class ScoreLineOut(BaseModel):
@@ -172,6 +211,16 @@ class OpportunityListItem(BaseModel):
     has_decision_maker: bool = False
     last_analyzed: datetime | None = None
     created_at: datetime
+    # 007 - supplier-opportunity fields (null for services that don't use them)
+    headquarters: str | None = None
+    headquarters_state: str | None = None
+    employee_band: str | None = None
+    company_type: str | None = None
+    latest_signal_type: str | None = None
+    latest_signal_at: datetime | None = None
+    product_categories: list[str] = []
+    product_demand_summary: str | None = None
+    confidence: float | None = None
 
 
 class OpportunityDetail(BaseModel):
@@ -183,6 +232,10 @@ class OpportunityDetail(BaseModel):
     decision_makers: list[DecisionMakerOut] = []
     score_breakdown: list[ScoreLineOut] = []
     ai_analysis: dict | None = None
+    product_interests: list[ProductInterestOut] = []
+    company_facts: list[CompanyFactOut] = []
+    product_demand_summary: str | None = None
+    signal_dimensions: dict[str, str] = {}
 
 
 class PaginatedOpportunities(BaseModel):
@@ -224,6 +277,10 @@ class DashboardStats(BaseModel):
     by_intent: list[dict] = []
     by_signal: list[dict] = []
     by_business_model: list[dict] = []
+    by_company_type: list[dict] = []
+    by_employee_band: list[dict] = []
+    by_product_category: list[dict] = []
+    by_interest_type: list[dict] = []
 
 
 # ---------------- admin ----------------

@@ -11,7 +11,18 @@ from pathlib import Path
 
 MIGRATIONS = Path(__file__).resolve().parent.parent / "migrations"
 
+# Legacy 3PL seed files. `collect` dedupes on the unique key WITHOUT the
+# service id, so it must only ever see one service's files at a time.
 SEED_FILES = ("003_seed_3pl.sql", "004_broaden_beyond_ecommerce.sql")
+
+# One tuple of files per service; used for per-service counts.
+SERVICE_SEED_GROUPS: dict[str, tuple[str, ...]] = {
+    "3pl": SEED_FILES,
+    "powersports_aftermarket_sourcing": ("007_powersports_aftermarket_sourcing.sql",),
+}
+
+# Every file that seeds service rows - for the structural SQL tests.
+ALL_SEED_FILES = tuple(f for files in SERVICE_SEED_GROUPS.values() for f in files)
 
 # (label, insert marker, number of fields that form the unique constraint)
 SEEDED = {
@@ -124,5 +135,13 @@ def collect(label: str, files: tuple[str, ...] = SEED_FILES) -> list[list[str]]:
     return out
 
 
-def expected_counts() -> dict[str, int]:
-    return {label: len(collect(label)) for label in SEEDED}
+def expected_counts(groups: dict[str, tuple[str, ...]] | None = None
+                    ) -> dict[str, int]:
+    """Row counts after running every seed file, summed per service."""
+    groups = groups or {"3pl": SEED_FILES}
+    totals = {label: 0 for label in SEEDED}
+    for files in groups.values():
+        for label in SEEDED:
+            totals[label] += len(collect(label, files))
+    totals["services"] = len(groups)
+    return totals

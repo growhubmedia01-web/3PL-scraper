@@ -130,7 +130,8 @@ class Settings(BaseSettings):
     max_queries_per_discovery_run: int = 50
     max_ai_calls_per_run: int = 100
 
-    default_service_slug: str = "3pl"
+    # Legacy value was "3pl"; that service is retained (inactive).
+    default_service_slug: str = "powersports_aftermarket_sourcing"
 
     @field_validator("database_url", "database_migration_url")
     @classmethod

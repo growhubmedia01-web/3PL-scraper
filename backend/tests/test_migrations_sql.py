@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from scripts.sql_parse import (
-    SEED_FILES, collect, split_fields, unquote, values_rows,
+    ALL_SEED_FILES, SEED_FILES, collect, split_fields, unquote, values_rows,
 )
 
 MIGRATIONS = Path(__file__).resolve().parent.parent / "migrations"
@@ -52,7 +52,7 @@ def _rows(block: str) -> list[list[str]]:
             for row in re.findall(r"\(([^()]*)\)", block)]
 
 
-@pytest.mark.parametrize("seed_file", SEED_FILES)
+@pytest.mark.parametrize("seed_file", ALL_SEED_FILES)
 @pytest.mark.parametrize("table,marker,key_idx", UNIQUE_CONSTRAINTS)
 def test_no_duplicate_constrained_values(table: str, marker: str,
                                          key_idx: tuple[int, ...],
@@ -73,7 +73,7 @@ def test_no_duplicate_constrained_values(table: str, marker: str,
         f"cannot affect row a second time'.")
 
 
-@pytest.mark.parametrize("seed_file", SEED_FILES)
+@pytest.mark.parametrize("seed_file", ALL_SEED_FILES)
 def test_every_insert_is_idempotent(seed_file: str):
     """Re-running the seed must not duplicate rows or error."""
     sql = (MIGRATIONS / seed_file).read_text(encoding="utf-8")
@@ -165,7 +165,7 @@ def test_on_conflict_targets_match_a_real_constraint():
     specification'."""
     declared = _declared_unique_constraints()
     problems = []
-    segments = [seg for name in SEED_FILES
+    segments = [seg for name in ALL_SEED_FILES
                 for seg in _insert_segments((MIGRATIONS / name).read_text(encoding="utf-8"))]
     for table, segment in segments:
         match = re.search(r"on conflict \(([^)]+)\)", segment)
@@ -182,7 +182,7 @@ def test_every_insert_segment_is_guarded():
     """Checked per-statement, so an unguarded INSERT can't hide behind the
     next statement's guard."""
     unguarded = [
-        f"{name}:{table}" for name in SEED_FILES
+        f"{name}:{table}" for name in ALL_SEED_FILES
         for table, segment in _insert_segments((MIGRATIONS / name).read_text(encoding="utf-8"))
         if "on conflict" not in segment and "not exists" not in segment
     ]
@@ -244,7 +244,8 @@ def test_python_seed_does_not_contradict_the_sql_seed():
 @pytest.mark.parametrize("name", [
     "001_init.sql", "002_rls.sql", "003_seed_3pl.sql",
     "004_broaden_beyond_ecommerce.sql", "005_query_library.sql",
-    "006_linkedin_url.sql", "ALL_IN_ONE.sql",
+    "006_linkedin_url.sql", "007_powersports_aftermarket_sourcing.sql",
+    "ALL_IN_ONE.sql",
 ])
 def test_migrations_are_pure_ascii(name: str):
     """SQL files get opened in editors that re-save as cp1252, which turns an
@@ -266,7 +267,8 @@ def test_migrations_are_pure_ascii(name: str):
 @pytest.mark.parametrize("name", [
     "001_init.sql", "002_rls.sql", "003_seed_3pl.sql",
     "004_broaden_beyond_ecommerce.sql", "005_query_library.sql",
-    "006_linkedin_url.sql", "ALL_IN_ONE.sql",
+    "006_linkedin_url.sql", "007_powersports_aftermarket_sourcing.sql",
+    "ALL_IN_ONE.sql",
 ])
 def test_migrations_use_lf_line_endings(name: str):
     assert b"\r\n" not in (MIGRATIONS / name).read_bytes(), (
@@ -280,3 +282,24 @@ def test_query_library_sql_is_current():
     assert len(rows) == len(build_library()), (
         "005_query_library.sql is stale. "
         "Rebuild: python -m scripts.build_query_library")
+
+
+def test_service_migration_matches_its_generator():
+    """007 is generated from scripts/services/<slug>.py; a hand edit to
+    either side must be caught."""
+    from scripts.build_service_seed import render
+    from scripts.services import MIGRATION_FILES, SERVICE_MODULES
+    for slug, module in SERVICE_MODULES.items():
+        on_disk = (MIGRATIONS / MIGRATION_FILES[slug]).read_text(encoding="utf-8")
+        assert on_disk == render(module), (
+            f"{MIGRATION_FILES[slug]} is stale. "
+            f"Rebuild: python -m scripts.build_service_seed {slug}")
+
+
+def test_service_migration_never_deletes():
+    from scripts.services import MIGRATION_FILES
+    for name in MIGRATION_FILES.values():
+        code = "\n".join(l for l in (MIGRATIONS / name).read_text(
+            encoding="utf-8").lower().splitlines() if not l.strip().startswith("--"))
+        for forbidden in ("drop table", "delete from", "truncate", "drop column"):
+            assert forbidden not in code, f"{name} contains '{forbidden}'"

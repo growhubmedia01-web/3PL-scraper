@@ -1,8 +1,13 @@
-"""Seed the database from the SQL migration files.
+"""Seed the database.
 
 Usage (from backend/):
-    python -m scripts.seed              # create schema + seed 3PL
+    python -m scripts.seed              # schema + every service (default)
     python -m scripts.seed --local      # use the local SQLite fallback
+    python -m scripts.seed --service powersports_aftermarket_sourcing
+    python -m scripts.seed --service 3pl          # legacy service only
+
+Seeds the legacy 3PL service (retained, inactive) and every data-defined
+service in scripts/services/. Re-running never duplicates rows.
 """
 from __future__ import annotations
 
@@ -369,15 +374,107 @@ SERVICE_CONFIG = {
 
 def run_sql_migrations() -> None:
     """Postgres path: execute the .sql files in order."""
+    from scripts.services import MIGRATION_FILES
     with engine.begin() as conn:
-        for name in ("001_init.sql", "002_rls.sql", "003_seed_3pl.sql"):
+        for name in ("001_init.sql", "002_rls.sql", "003_seed_3pl.sql",
+                     "004_broaden_beyond_ecommerce.sql", "006_linkedin_url.sql",
+                     *MIGRATION_FILES.values()):
             path = MIGRATIONS / name
             log.info("Applying %s", name)
             conn.execute(text(path.read_text()))
 
 
+def seed_service_module(db, module, with_library: bool = True,
+                        make_default_active: bool = True) -> Service:
+    """Seed one data-defined service (scripts/services/*). Mirrors the
+    generated SQL migration: rows are upserted on their unique keys, so
+    re-running refreshes weights instead of duplicating rows."""
+    service = db.execute(
+        select(Service).where(Service.slug == module.SLUG)).scalar_one_or_none()
+    if service is None:
+        service = Service(name=module.NAME, slug=module.SLUG,
+                          description=module.DESCRIPTION, status="active",
+                          config=module.CONFIG)
+        db.add(service)
+        db.flush()
+        log.info("Created service '%s'", module.SLUG)
+    else:
+        service.name = module.NAME
+        service.description = module.DESCRIPTION
+        service.config = module.CONFIG
+        service.status = "active"
+        log.info("Service '%s' already exists - config refreshed", module.SLUG)
+
+    signals = {r.signal_type: r for r in db.execute(
+        select(ServiceSignal).where(ServiceSignal.service_id == service.id)
+    ).scalars()}
+    for stype, sname, desc, weight, decay, max_occ in module.SIGNALS:
+        row = signals.get(stype) or ServiceSignal(service_id=service.id,
+                                                  signal_type=stype)
+        row.signal_name, row.description = sname, desc
+        row.weight, row.decay_days, row.max_occurrences = weight, decay, max_occ
+        db.add(row)
+
+    keywords = {(r.keyword, r.category): r for r in db.execute(
+        select(ServiceKeyword).where(ServiceKeyword.service_id == service.id)
+    ).scalars()}
+    for keyword, category, signal_type, weight in module.KEYWORDS:
+        row = keywords.get((keyword, category)) or ServiceKeyword(
+            service_id=service.id, keyword=keyword, category=category)
+        row.signal_type, row.weight = signal_type, weight
+        db.add(row)
+        keywords[(keyword, category)] = row
+
+    roles = {r.title_pattern: r for r in db.execute(
+        select(ServiceRole).where(ServiceRole.service_id == service.id)
+    ).scalars()}
+    for pattern, priority in module.ROLES:
+        row = roles.get(pattern) or ServiceRole(service_id=service.id,
+                                                title_pattern=pattern)
+        row.role_priority = priority
+        db.add(row)
+
+    added = 0
+    if with_library:
+        existing = {(r.query, r.country) for r in db.execute(
+            select(DiscoveryQuery).where(DiscoveryQuery.service_id == service.id)
+        ).scalars()}
+        for q in module.build_library():
+            if (q.text, q.country) in existing:
+                continue
+            existing.add((q.text, q.country))
+            db.add(DiscoveryQuery(service_id=service.id, query=q.text,
+                                  country=q.country, priority=q.tier))
+            added += 1
+
+    if make_default_active:
+        legacy = db.execute(select(Service).where(Service.slug == "3pl")
+                            ).scalar_one_or_none()
+        if legacy is not None and legacy.status == "active":
+            legacy.status = "inactive"    # retained with all its history
+            log.info("Legacy service '3pl' set inactive (not deleted)")
+    db.flush()
+    log.info("Service '%s': %d signals, %d keywords, %d roles, %d new queries",
+             module.SLUG, len(module.SIGNALS), len(module.KEYWORDS),
+             len(module.ROLES), added)
+    return service
+
+
+def seed_services(slugs: list[str] | None = None, with_library: bool = True) -> None:
+    from scripts.services import SERVICE_MODULES
+    db = SessionLocal()
+    try:
+        for slug, module in SERVICE_MODULES.items():
+            if slugs and slug not in slugs:
+                continue
+            seed_service_module(db, module, with_library=with_library)
+        db.commit()
+    finally:
+        db.close()
+
+
 def seed_orm(with_library: bool = True) -> None:
-    """Portable path: seed via the ORM (works on SQLite and Postgres)."""
+    """Portable path: seed the legacy 3PL service via the ORM."""
     db = SessionLocal()
     try:
         service = db.execute(
@@ -490,6 +587,8 @@ def main() -> None:
                         help="Create schema via ORM metadata first")
     parser.add_argument("--no-library", action="store_true",
                         help="Skip the generated combinatorial query library")
+    parser.add_argument("--service", default="all",
+                        help="'all' (default), '3pl', or a registered slug")
     args = parser.parse_args()
 
     guard_database_configured()
@@ -500,7 +599,27 @@ def main() -> None:
     elif args.local or settings.database_url.startswith("sqlite"):
         init_local_schema()
 
-    seed_orm(with_library=not args.no_library)
+    if args.service in ("all", "3pl"):
+        # seed_orm() writes status='active' on the legacy service; remember
+        # what it was so re-seeding never silently re-activates 3PL.
+        db = SessionLocal()
+        try:
+            legacy_status = db.execute(select(Service.status).where(
+                Service.slug == "3pl")).scalar_one_or_none()
+        finally:
+            db.close()
+        seed_orm(with_library=not args.no_library)
+        if legacy_status and legacy_status != "active":
+            db = SessionLocal()
+            try:
+                db.execute(select(Service).where(Service.slug == "3pl")
+                           ).scalar_one().status = legacy_status
+                db.commit()
+            finally:
+                db.close()
+    if args.service != "3pl":
+        seed_services(None if args.service == "all" else [args.service],
+                      with_library=not args.no_library)
 
 
 if __name__ == "__main__":

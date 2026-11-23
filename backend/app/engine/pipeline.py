@@ -27,6 +27,8 @@ from sqlalchemy.orm import Session
 from app.engine import ai_analysis as ai
 from app.engine import decision_makers as dm
 from app.engine import linkedin
+from app.engine import product_interest as interests
+from app.engine import profile as profile_engine
 from app.engine import scoring, signals as signal_engine
 from app.engine.classifier import apply_classification, classify
 from app.engine.crawler import crawl_company, load_pages_from_sources
@@ -47,6 +49,7 @@ class CompanyResult:
     score: float | None = None
     intent_level: str | None = None
     signals_found: int = 0
+    product_interests_found: int = 0
     decision_makers_found: int = 0
     ai_used: bool = False
     error: str | None = None
@@ -84,8 +87,16 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
         result.stage = "crawl"
         needs_crawl = force_crawl or company.last_crawled_at is None or \
             company.status in ("queued", "discovered", "error")
+        crawl_kwargs = {}
+        if config.crawl_priority_paths:
+            crawl_kwargs["priority_paths"] = config.crawl_priority_paths
+        if config.crawl_max_pages:
+            crawl_kwargs["max_pages"] = config.crawl_max_pages
+        link_first = config.raw_config.get("crawl_link_first_page_types")
+        if link_first:
+            crawl_kwargs["link_first_types"] = set(link_first)
         if needs_crawl:
-            crawl = crawl_company(db, company)
+            crawl = crawl_company(db, company, **crawl_kwargs)
             pages = crawl.pages
             if not crawl.ok:
                 result.reason = crawl.error or "site unreachable"
@@ -94,7 +105,7 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
         else:
             pages = load_pages_from_sources(db, company)
             if not pages:
-                crawl = crawl_company(db, company)
+                crawl = crawl_company(db, company, **crawl_kwargs)
                 pages = crawl.pages
                 if not crawl.ok:
                     result.reason = crawl.error or "site unreachable"
@@ -104,8 +115,15 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
         # ---- 2. Classify + early reject (§32, §49) ---------------------
         result.stage = "classify"
         classification = classify(company, pages,
-                                  config.excluded_business_types)
+                                  config.excluded_business_types, config=config)
         apply_classification(db, company, classification)
+        # Company-published size / HQ / facility facts, with provenance.
+        # Runs before the reject so a rejected company still has its profile.
+        try:
+            profile_engine.apply_profile(db, company, pages, config.size_bands)
+        except Exception as exc:
+            log.warning("Profile extraction failed for %s: %s",
+                        company.domain, exc)
         if not classification.relevant:
             result.rejected = True
             result.reason = classification.rejection_reason
@@ -125,7 +143,7 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
         result.stage = "evidence"
         external_pages = []
         if not skip_external:
-            external_pages = collect_external_evidence(db, company)
+            external_pages = collect_external_evidence(db, company, config)
 
         # ---- 4. Signals (§18) ------------------------------------------
         result.stage = "signals"
@@ -134,6 +152,19 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
         stored_signals = signal_engine.persist_signals(
             db, company, config, detected)
         result.signals_found = len(stored_signals)
+
+        # ---- 4b. Product interests (config-driven taxonomy) -------------
+        interest_rows = []
+        if config.product_taxonomy:
+            result.stage = "product_interests"
+            interest_rows = interests.run(
+                db, company, stored_signals, pages + external_pages, config)
+            result.product_interests_found = len(interest_rows)
+        context_lines = [
+            f"- {r.interest_type} | {r.category or '-'} / {r.subcategory or '-'}"
+            f" | products: {', '.join(r.products) or 'none named'}"
+            f" | brand: {r.brand or '-'} | source: {r.source_url}"
+            for r in interest_rows[:25]]
 
         # ---- 5. Provisional score, to decide whether AI is worth it ----
         result.stage = "score"
@@ -146,7 +177,8 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
             sources = db.execute(
                 select(Source).where(Source.company_id == company.id)
             ).scalars().all()
-            analysis = ai.analyze(db, company, stored_signals, list(sources), config)
+            analysis = ai.analyze(db, company, stored_signals, list(sources),
+                                  config, context_lines=context_lines or None)
             if analysis is not None:
                 analysis_dict = ai.to_dict(analysis)
                 probability = analysis.service_probability
@@ -160,7 +192,9 @@ def process_company(db: Session, company: Company, config: ServiceConfig, *,
         final = scoring.calculate(db, company, stored_signals, config,
                                   ai_probability=probability)
         opportunity = scoring.upsert_opportunity(
-            db, company, config, final, analysis_dict)
+            db, company, config, final, analysis_dict,
+            evidenced_needs=(interests.buying_categories(interest_rows)
+                             if config.product_taxonomy else None))
         result.score = final.score
         result.intent_level = final.intent_level
 

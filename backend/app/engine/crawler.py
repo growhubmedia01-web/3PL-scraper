@@ -91,6 +91,18 @@ def _render_with_playwright(url: str) -> tuple[str, int]:
         return "", 0
 
 
+def parse_date(value: str | None) -> datetime | None:
+    """ISO / free-text date -> aware datetime, or None. Never raises."""
+    if not value:
+        return None
+    try:
+        from dateutil import parser
+        parsed = parser.parse(value, fuzzy=True)
+    except Exception:
+        return None
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
+
+
 def _persist_source(db: Session, company: Company, page: ExtractedPage) -> Source:
     """Upsert on (company_id, url). Skips rewriting unchanged content."""
     existing = db.execute(
@@ -114,6 +126,7 @@ def _persist_source(db: Session, company: Company, page: ExtractedPage) -> Sourc
         url=page.url, title=page.title, content=page.text,
         excerpt=truncate(page.text, 500), content_hash=page.hash,
         http_status=page.http_status,
+        published_at=parse_date(page.published_at),
     )
     db.add(source)
     db.flush()
@@ -122,7 +135,9 @@ def _persist_source(db: Session, company: Company, page: ExtractedPage) -> Sourc
 
 def crawl_company(db: Session, company: Company,
                   max_pages: int | None = None,
-                  max_seconds: float | None = None) -> CrawlResult:
+                  max_seconds: float | None = None,
+                  priority_paths: list[tuple[str, str]] | None = None,
+                  link_first_types: set[str] | None = None) -> CrawlResult:
     """Crawl one company's website. Never raises for site-level problems.
 
     `max_seconds` bounds the whole company. Without it a slow or flaky site
@@ -185,7 +200,9 @@ def crawl_company(db: Session, company: Company,
                 return result
 
             # 2. Priority + discovered pages.
-            targets = candidate_urls(base, home.internal_links, limit=max_pages)
+            targets = candidate_urls(base, home.internal_links, limit=max_pages,
+                                     priority_paths=priority_paths,
+                                     link_first_types=link_first_types)
             for url, page_type in targets:
                 if result.fetched >= max_pages:
                     break
@@ -291,6 +308,8 @@ def load_pages_from_sources(db: Session, company: Company) -> list[ExtractedPage
     for row in rows:
         page = ExtractedPage(url=row.url, title=row.title or "",
                              text=row.content or "", page_type=row.source_type,
-                             http_status=row.http_status)
+                             http_status=row.http_status,
+                             published_at=(row.published_at.isoformat()
+                                           if row.published_at else None))
         pages.append(page)
     return pages

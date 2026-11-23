@@ -22,7 +22,21 @@ except Exception:  # pragma: no cover
     _HAS_TRAFILATURA = False
 
 # Page-type routing (§31 priority pages)
+# Order matters: the first match wins. "supplier" and "dealer" come before
+# "careers"/"about" so /become-a-vendor is never filed as a generic page.
+# The two are deliberately distinct page types: a vendor-intake page is the
+# company BUYING, a dealer-application page is the company SELLING.
 PAGE_TYPE_PATTERNS: list[tuple[str, re.Pattern]] = [
+    ("supplier", re.compile(r"/(suppliers?|vendors?|become-a-(supplier|vendor)|"
+                            r"(supplier|vendor)-(application|submission|inquiry|"
+                            r"inquiries|onboarding|portal|info|information)|"
+                            r"new-(vendor|supplier|brand)s?|product-submissions?|"
+                            r"submit-(a-)?product)", re.I)),
+    ("dealer", re.compile(r"/(dealers?|become-a-dealer|dealer-(application|"
+                          r"signup|sign-up|program|inquiry|locator)|"
+                          r"find-a-dealer|wholesale-application|resellers?)", re.I)),
+    ("brands", re.compile(r"/(brands?|our-brands|line-?card|manufacturers|"
+                          r"product-lines?|catalogs?)(/|$)", re.I)),
     ("shipping", re.compile(r"/(shipping|delivery|shipping-policy|delivery-information)", re.I)),
     ("returns", re.compile(r"/(returns?|return-policy|refunds?|exchanges)", re.I)),
     ("careers", re.compile(r"/(careers?|jobs?|join-us|work-with-us|were-hiring|hiring|vacancies)", re.I)),
@@ -63,6 +77,7 @@ class ExtractedPage:
     json_ld: list[dict] = field(default_factory=list)
     currencies: list[str] = field(default_factory=list)
     http_status: int | None = None
+    published_at: str | None = None   # ISO string from meta / JSON-LD
 
     @property
     def hash(self) -> str:
@@ -113,6 +128,29 @@ def _extract_json_ld(soup: BeautifulSoup) -> list[dict]:
         elif isinstance(data, dict):
             out.append(data)
     return out
+
+
+_DATE_META = ("article:published_time", "og:published_time", "datePublished",
+              "pubdate", "publish-date", "date", "dc.date")
+
+
+def _published_meta(soup: BeautifulSoup, json_ld: list[dict]) -> str | None:
+    """Publication date from structured metadata, when the page states one.
+    Freshness decay is only meaningful with a real date (section 25)."""
+    for block in json_ld:
+        for key in ("datePublished", "dateCreated"):
+            if block.get(key):
+                return str(block[key])[:40]
+    for name in _DATE_META:
+        tag = (soup.find("meta", attrs={"property": name})
+               or soup.find("meta", attrs={"name": name})
+               or soup.find("meta", attrs={"itemprop": name}))
+        if tag and tag.get("content"):
+            return str(tag["content"])[:40]
+    time_tag = soup.find("time", attrs={"datetime": True})
+    if time_tag:
+        return str(time_tag["datetime"])[:40]
+    return None
 
 
 def extract(html: str, url: str, http_status: int | None = None) -> ExtractedPage:
@@ -172,20 +210,39 @@ def extract(html: str, url: str, http_status: int | None = None) -> ExtractedPag
         if urlparse(l).netloc.lower().removeprefix("www.") == host]
 
     page.json_ld = _extract_json_ld(soup)
+    page.published_at = _published_meta(soup, page.json_ld)
     page.currencies = _detect_currencies(html[:200_000])
     return page
 
 
 def candidate_urls(base_url: str, discovered_links: list[str] | None = None,
-                   limit: int = 12) -> list[tuple[str, str]]:
+                   limit: int = 12,
+                   priority_paths: list[tuple[str, str]] | None = None,
+                   link_first_types: set[str] | None = None
+                   ) -> list[tuple[str, str]]:
     """Priority pages first, then anything the homepage linked to that looks
-    like a priority page. Returns [(url, page_type)]."""
+    like a priority page. Returns [(url, page_type)].
+
+    A service may supply its own `priority_paths`, and `link_first_types`:
+    links the homepage actually contains of those page types are queued
+    before guessed paths - a real /vendor-application link beats guessing.
+    """
     from urllib.parse import urlparse
     base = base_url.rstrip("/")
     out: list[tuple[str, str]] = []
     seen: set[str] = set()
 
-    for path, page_type in PRIORITY_PATHS:
+    if link_first_types:
+        for link in discovered_links or []:
+            norm = normalize_url(link)
+            if not norm or norm in seen:
+                continue
+            page_type = classify_page_type(norm)
+            if page_type in link_first_types:
+                seen.add(norm)
+                out.append((norm, page_type))
+
+    for path, page_type in (priority_paths or PRIORITY_PATHS):
         url = base if path == "/" else f"{base}{path}"
         norm = normalize_url(url)
         if norm and norm not in seen:

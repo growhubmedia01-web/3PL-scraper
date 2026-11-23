@@ -9,15 +9,20 @@ from sqlalchemy import String, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.engine.service_config import build_config
 from app.models import (
-    Company, DecisionMaker, LeadReview, Service, ServiceOpportunity, Signal,
-    Source,
+    Company, CompanyFact, DecisionMaker, LeadReview, ProductInterest, Service,
+    ServiceOpportunity, Signal, Source,
 )
 from app.schemas import (
-    CompanyOut, DecisionMakerOut, LeadReviewCreate, OpportunityDetail,
-    OpportunityListItem, OpportunityOut, PaginatedOpportunities, ScoreLineOut,
-    SignalOut, SourceOut,
+    CompanyFactOut, CompanyOut, DecisionMakerOut, LeadReviewCreate,
+    OpportunityDetail, OpportunityListItem, OpportunityOut,
+    PaginatedOpportunities, ProductInterestOut, ScoreLineOut, SignalOut,
+    SourceOut,
 )
+
+BUYING_INTEREST_TYPES = ("EXPLICITLY_SEEKING", "RECENTLY_ADDED")
+DEFAULT_NO_DEMAND = "Specific product demand not publicly disclosed."
 
 router = APIRouter(prefix="/api/services/{service_ref}/opportunities",
                    tags=["opportunities"])
@@ -67,6 +72,65 @@ def _dm_map(db: Session, company_ids: list[str]) -> dict[str, DecisionMaker]:
     return out
 
 
+def latest_signal_map(db: Session, service_id: str, company_ids: list[str],
+                      signal_dimensions: dict[str, str]
+                      ) -> dict[str, tuple[str, datetime]]:
+    """Most recent buying (intent-dimension) signal per company."""
+    if not company_ids:
+        return {}
+    rows = db.execute(
+        select(Signal.company_id, Signal.signal_type, Signal.detected_at)
+        .where(Signal.service_id == service_id,
+               Signal.company_id.in_(company_ids))
+    ).all()
+    out: dict[str, tuple[str, datetime]] = {}
+    for company_id, signal_type, detected_at in rows:
+        if signal_dimensions.get(signal_type, "intent") != "intent":
+            continue
+        prior = out.get(company_id)
+        if prior is None or _aware(detected_at) > _aware(prior[1]):
+            out[company_id] = (signal_type, detected_at)
+    return out
+
+
+def _aware(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+
+
+def interest_map(db: Session, service_id: str, company_ids: list[str]
+                 ) -> dict[str, list[ProductInterest]]:
+    if not company_ids:
+        return {}
+    rows = db.execute(
+        select(ProductInterest)
+        .where(ProductInterest.service_id == service_id,
+               ProductInterest.company_id.in_(company_ids))
+        .order_by(ProductInterest.confidence.desc())
+    ).scalars().all()
+    out: dict[str, list[ProductInterest]] = {}
+    for row in rows:
+        out.setdefault(row.company_id, []).append(row)
+    return out
+
+
+def demand_summary(rows: list[ProductInterest], message: str) -> str:
+    buying = [r for r in rows
+              if r.interest_type in BUYING_INTEREST_TYPES and r.category]
+    if not buying:
+        return message
+    parts = []
+    for r in buying[:4]:
+        parts.append(f"{r.subcategory or r.category} "
+                     f"({r.interest_type.lower().replace('_', ' ')})")
+    return "; ".join(dict.fromkeys(parts))
+
+
+def buying_categories(rows: list[ProductInterest]) -> list[str]:
+    return list(dict.fromkeys(
+        r.category for r in rows
+        if r.interest_type in BUYING_INTEREST_TYPES and r.category))
+
+
 def _evidence_counts(db: Session, company_ids: list[str]) -> dict[str, int]:
     if not company_ids:
         return {}
@@ -97,6 +161,17 @@ def list_opportunities(
     has_decision_maker: bool | None = None,
     discovered_after: datetime | None = None,
     discovered_within_days: int | None = Query(None, ge=1, le=365),
+    state: str | None = Query(None, description="US state of headquarters, e.g. TX"),
+    employee_band: str | None = Query(
+        None, description="micro|small|mid_market|large|unknown"),
+    company_type: str | None = None,
+    product_category: str | None = Query(
+        None, description="Category with EXPLICITLY_SEEKING/RECENTLY_ADDED evidence"),
+    interest_type: str | None = Query(
+        None, description="EXPLICITLY_SEEKING|RECENTLY_ADDED|CURRENTLY_CARRIED|INFERRED_FIT"),
+    vehicle_segment: str | None = None,
+    signal_within_days: int | None = Query(
+        None, ge=1, le=730, description="Signal freshness: detected within N days"),
     sort: str = Query("score", description="score|newest|urgency|updated|evidence"),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=200),
@@ -141,6 +216,42 @@ def list_opportunities(
         stmt = stmt.where(ServiceOpportunity.company_id.in_(sub)
                           if has_decision_maker
                           else ServiceOpportunity.company_id.not_in(sub))
+    if state:
+        stmt = stmt.where(Company.headquarters_state == state.upper())
+    if employee_band:
+        stmt = stmt.where(Company.employee_band.is_(None)
+                          if employee_band == "unknown"
+                          else Company.employee_band == employee_band)
+    if company_type:
+        stmt = stmt.where(Company.company_type.is_(None)
+                          if company_type == "unknown"
+                          else Company.company_type == company_type)
+    if product_category or interest_type:
+        sub = select(ProductInterest.company_id).where(
+            ProductInterest.service_id == service.id)
+        if product_category:
+            sub = sub.where(ProductInterest.category == product_category)
+            if not interest_type:
+                sub = sub.where(ProductInterest.interest_type.in_(
+                    BUYING_INTEREST_TYPES))
+        if interest_type:
+            sub = sub.where(ProductInterest.interest_type == interest_type.upper())
+        stmt = stmt.where(ServiceOpportunity.company_id.in_(sub))
+    if vehicle_segment:
+        # JSON containment differs across dialects; a text match on the
+        # serialized list is portable and exact enough for a filter.
+        sub = select(ProductInterest.company_id).where(
+            ProductInterest.service_id == service.id,
+            func.cast(ProductInterest.vehicle_segments, String).like(
+                f'%"{vehicle_segment}"%'))
+        stmt = stmt.where(ServiceOpportunity.company_id.in_(sub))
+    if signal_within_days:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=signal_within_days)
+        sub = select(Signal.company_id).where(
+            Signal.service_id == service.id, Signal.detected_at >= cutoff)
+        if signal:
+            sub = sub.where(Signal.signal_type == signal)
+        stmt = stmt.where(ServiceOpportunity.company_id.in_(sub))
 
     total = db.execute(
         select(func.count()).select_from(stmt.subquery())).scalar_one()
@@ -154,6 +265,12 @@ def list_opportunities(
     signals = _signal_map(db, service.id, company_ids)
     dms = _dm_map(db, company_ids)
     evidence = _evidence_counts(db, company_ids)
+    cfg = service.config or {}
+    dimensions = cfg.get("signal_dimensions") or {}
+    latest = latest_signal_map(db, service.id, company_ids, dimensions)
+    interests = interest_map(db, service.id, company_ids) \
+        if cfg.get("product_taxonomy") else {}
+    no_demand = cfg.get("no_product_demand_message") or DEFAULT_NO_DEMAND
 
     items = []
     for opportunity, company in rows:
@@ -175,7 +292,18 @@ def list_opportunities(
             decision_maker_confidence=float(dm.confidence) if dm else None,
             has_decision_maker=dm is not None,
             last_analyzed=opportunity.last_analyzed,
-            created_at=opportunity.created_at))
+            created_at=opportunity.created_at,
+            headquarters=company.headquarters,
+            headquarters_state=company.headquarters_state,
+            employee_band=company.employee_band,
+            company_type=company.company_type,
+            latest_signal_type=latest.get(company.id, (None, None))[0],
+            latest_signal_at=latest.get(company.id, (None, None))[1],
+            product_categories=buying_categories(interests.get(company.id, [])),
+            product_demand_summary=(
+                demand_summary(interests.get(company.id, []), no_demand)
+                if cfg.get("product_taxonomy") else None),
+            confidence=opportunity.confidence))
 
     if sort == "evidence":
         items.sort(key=lambda i: i.evidence_count, reverse=True)
@@ -217,7 +345,27 @@ def get_opportunity(service_ref: str, opportunity_id: str,
         .order_by(DecisionMaker.role_priority, DecisionMaker.confidence.desc())
     ).scalars().all()
 
+    interest_rows = db.execute(
+        select(ProductInterest)
+        .where(ProductInterest.company_id == company.id,
+               ProductInterest.service_id == service.id)
+        .order_by(ProductInterest.confidence.desc())
+    ).scalars().all()
+    facts = db.execute(
+        select(CompanyFact).where(CompanyFact.company_id == company.id)
+        .order_by(CompanyFact.fact_type, CompanyFact.confidence.desc())
+    ).scalars().all()
+    cfg = service.config or {}
+
     return OpportunityDetail(
+        product_interests=[ProductInterestOut.model_validate(r)
+                           for r in interest_rows],
+        company_facts=[CompanyFactOut.model_validate(f) for f in facts],
+        product_demand_summary=(
+            demand_summary(list(interest_rows),
+                           cfg.get("no_product_demand_message") or DEFAULT_NO_DEMAND)
+            if cfg.get("product_taxonomy") else None),
+        signal_dimensions=dict(cfg.get("signal_dimensions") or {}),
         opportunity=OpportunityOut.model_validate(opportunity),
         company=CompanyOut.model_validate(company),
         signals=signals,

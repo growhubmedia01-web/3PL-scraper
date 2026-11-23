@@ -4,7 +4,7 @@ help:
 	@echo "make doctor     - diagnose setup: db, schema, keys, row counts"
 	@echo "make build-sql  - regenerate migrations/ALL_IN_ONE.sql"
 	@echo "make install    - install backend + frontend dependencies"
-	@echo "make seed       - create schema and seed the 3PL service config"
+	@echo "make seed       - create schema and seed all service configs"
 	@echo "make api        - run the FastAPI server (http://localhost:8000/docs)"
 	@echo "make worker     - run the Celery worker"
 	@echo "make beat       - run the Celery scheduler"

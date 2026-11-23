@@ -16,6 +16,9 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
+from app.api.opportunities import (
+    DEFAULT_NO_DEMAND, demand_summary, interest_map, latest_signal_map,
+)
 from app.models import (
     Company, DecisionMaker, Service, ServiceOpportunity, Signal, Source,
 )
@@ -28,6 +31,14 @@ CSV_COLUMNS = [
     "Score", "Intent Level", "Urgency", "Signals", "Likely Services",
     "Target Country", "Decision Maker", "Job Title", "Public Profile URL",
     "Decision Maker Confidence", "Evidence URLs", "Last Updated",
+    # 007 - distributor / product-interest intelligence (appended so the
+    # legacy column order is unchanged)
+    "Headquarters", "HQ State", "Company Type", "Employee Band",
+    "Size Source URL", "Size Confidence",
+    "Latest Buying Signal", "Latest Signal Date",
+    "Product Demand Summary", "Explicitly Seeking", "Recently Added",
+    "Currently Carried", "Inferred Fit", "Vehicle Segments",
+    "Brands Involved", "Product Evidence URLs", "AI Confidence",
 ]
 
 FORBIDDEN_SUBSTRINGS = ("email", "e-mail", "mail")
@@ -109,12 +120,28 @@ def export_csv(
         ).all():
             evidence.setdefault(company_id, []).append(url)
 
+    cfg = svc.config or {}
+    latest = latest_signal_map(db, svc.id, company_ids,
+                               cfg.get("signal_dimensions") or {})
+    interests = interest_map(db, svc.id, company_ids)
+    no_demand = cfg.get("no_product_demand_message") or DEFAULT_NO_DEMAND
+
+    def _labels(rows_, kind):
+        return "; ".join(dict.fromkeys(
+            f"{r.category} > {r.subcategory}" if r.subcategory else r.category
+            for r in rows_ if r.interest_type == kind and r.category))
+
     buffer = io.StringIO()
     writer = csv.writer(buffer, quoting=csv.QUOTE_MINIMAL)
     writer.writerow(CSV_COLUMNS)
 
     for opportunity, company in rows:
         person = people.get(company.id)
+        pi = interests.get(company.id, [])
+        sig_type, sig_at = latest.get(company.id, (None, None))
+        segments = list(dict.fromkeys(seg for r in pi for seg in (r.vehicle_segments or [])))
+        brands = list(dict.fromkeys(r.brand for r in pi if r.brand))
+        pi_urls = list(dict.fromkeys(r.source_url for r in pi if r.source_url))
         writer.writerow([
             company.name or company.domain,
             company.website or f"https://{company.domain}",
@@ -135,6 +162,23 @@ def export_csv(
             f"{float(person.confidence):.2f}" if person else "",
             " | ".join(evidence.get(company.id, [])[:10]),
             opportunity.last_analyzed.isoformat() if opportunity.last_analyzed else "",
+            company.headquarters or "",
+            company.headquarters_state or "",
+            company.company_type or "",
+            company.employee_band or "unknown",
+            company.size_source_url or "",
+            f"{company.size_confidence:.2f}" if company.size_confidence else "",
+            sig_type or "",
+            sig_at.isoformat() if sig_at else "",
+            demand_summary(pi, no_demand) if cfg.get("product_taxonomy") else "",
+            _labels(pi, "EXPLICITLY_SEEKING"),
+            _labels(pi, "RECENTLY_ADDED"),
+            _labels(pi, "CURRENTLY_CARRIED"),
+            _labels(pi, "INFERRED_FIT"),
+            "; ".join(segments),
+            "; ".join(brands),
+            " | ".join(pi_urls[:10]),
+            f"{opportunity.confidence:.2f}" if opportunity.confidence is not None else "",
         ])
 
     buffer.seek(0)

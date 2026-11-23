@@ -182,6 +182,20 @@ class Company(Base, TimestampMixin):
     # retail | marketplace | subscription | importer | multi_channel
     business_model: Mapped[str | None] = mapped_column(Text)
     sales_channels: Mapped[list] = mapped_column(JSONType, default=list)
+    # Commercial role in a supply chain, from config-supplied markers (007):
+    # wholesale_distributor | manufacturer | brand_owner | importer |
+    # dealer_retailer | service_provider | hybrid_distributor_manufacturer
+    company_type: Mapped[str | None] = mapped_column(Text)
+    company_type_confidence: Mapped[float | None] = mapped_column(Float)
+    company_type_evidence: Mapped[dict] = mapped_column(JSONType, default=dict)
+    # Size. employee_band is derived from a company-published figure only;
+    # never estimated. size_source_url / size_observed_at give provenance.
+    employee_band: Mapped[str | None] = mapped_column(Text)
+    size_confidence: Mapped[float | None] = mapped_column(Float)
+    size_source_url: Mapped[str | None] = mapped_column(Text)
+    size_observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    headquarters: Mapped[str | None] = mapped_column(Text)
+    headquarters_state: Mapped[str | None] = mapped_column(String(2))
     status: Mapped[str] = mapped_column(Text, nullable=False, default="discovered")
     rejection_reason: Mapped[str | None] = mapped_column(Text)
     discovered_via: Mapped[str | None] = mapped_column(Text)
@@ -318,6 +332,84 @@ class DecisionMaker(Base, TimestampMixin):
     role_priority: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
 
     company: Mapped[Company] = relationship(back_populates="decision_makers")
+
+
+class CompanyFact(Base):
+    """A time-varying, sourced fact about a company (007).
+
+    Generic: fact_type is free text (employee_count, headquarters,
+    states_served, facility_location, dealer_count, brand_represented,
+    product_category_carried, vehicle_segment, supplier_intake_url,
+    distribution_model, revenue_range ...). Every row carries the URL it was
+    read from and when. is_estimate separates verified statements from
+    inferences so the UI never presents one as the other.
+    """
+    __tablename__ = "company_facts"
+    __table_args__ = (
+        UniqueConstraint("company_id", "fact_type", "value"),
+        Index("idx_company_facts_company", "company_id", "fact_type"),
+    )
+
+    id: Mapped[str] = mapped_column(GUID, primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(
+        GUID, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    fact_type: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    source_id: Mapped[str | None] = mapped_column(
+        GUID, ForeignKey("sources.id", ondelete="SET NULL"))
+    source_url: Mapped[str | None] = mapped_column(Text)
+    evidence: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    is_estimate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), default=utcnow)
+
+
+class ProductInterest(Base):
+    """What a company may want to buy, with the evidence that says so (007).
+
+    interest_type separates claims of very different strength:
+      EXPLICITLY_SEEKING  the company publicly asks for the product/supplier
+      RECENTLY_ADDED      a dated announcement shows it just added it
+      CURRENTLY_CARRIED   it is in the current assortment - NOT buying intent
+      INFERRED_FIT        adjacent to something evidenced - NOT buying intent
+    Every row must point at a source (source_id and/or source_url).
+    """
+    __tablename__ = "product_interests"
+    __table_args__ = (
+        Index("idx_product_interests_company_service", "company_id", "service_id"),
+        Index("idx_product_interests_category", "category"),
+        CheckConstraint(
+            "interest_type in ('EXPLICITLY_SEEKING','RECENTLY_ADDED',"
+            "'CURRENTLY_CARRIED','INFERRED_FIT')",
+            name="ck_interest_type"),
+    )
+
+    id: Mapped[str] = mapped_column(GUID, primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(
+        GUID, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    service_id: Mapped[str] = mapped_column(
+        GUID, ForeignKey("services.id", ondelete="CASCADE"), nullable=False)
+    signal_id: Mapped[str | None] = mapped_column(
+        GUID, ForeignKey("signals.id", ondelete="SET NULL"))
+    signal_type: Mapped[str | None] = mapped_column(Text)
+    interest_type: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str | None] = mapped_column(Text)
+    subcategory: Mapped[str | None] = mapped_column(Text)
+    products: Mapped[list] = mapped_column(JSONType, default=list)
+    vehicle_segments: Mapped[list] = mapped_column(JSONType, default=list)
+    vehicle_platforms: Mapped[list] = mapped_column(JSONType, default=list)
+    brand: Mapped[str | None] = mapped_column(Text)
+    reason: Mapped[str | None] = mapped_column(Text)
+    source_id: Mapped[str | None] = mapped_column(
+        GUID, ForeignKey("sources.id", ondelete="SET NULL"))
+    source_url: Mapped[str | None] = mapped_column(Text)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    event_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    evidence: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), default=utcnow)
 
 
 class Suppression(Base):

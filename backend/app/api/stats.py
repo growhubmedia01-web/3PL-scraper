@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.models import (
-    ApiUsage, Company, CrawlJob, DecisionMaker, Service, ServiceOpportunity,
-    Signal,
+    ApiUsage, Company, CrawlJob, DecisionMaker, ProductInterest, Service,
+    ServiceOpportunity, Signal,
 )
 from app.schemas import DashboardStats
 
@@ -89,6 +89,39 @@ def dashboard(service: str = Query(settings.default_service_slug),
     except Exception:
         db.rollback()
         stats.by_business_model = []
+
+    # 007: supplier-opportunity breakdowns, scoped to this service's leads.
+    try:
+        opp_companies = select(ServiceOpportunity.company_id).where(opp_where)
+        for attr, key in (("company_type", "by_company_type"),
+                          ("employee_band", "by_employee_band")):
+            column = getattr(Company, attr)
+            rows = db.execute(
+                select(column, func.count(Company.id))
+                .where(Company.id.in_(opp_companies))
+                .group_by(column).order_by(func.count(Company.id).desc())
+            ).all()
+            setattr(stats, key, [{attr: (v or "unknown"), "count": n}
+                                 for v, n in rows])
+        rows = db.execute(
+            select(ProductInterest.category,
+                   func.count(func.distinct(ProductInterest.company_id)))
+            .where(ProductInterest.service_id == svc.id,
+                   ProductInterest.category.is_not(None),
+                   ProductInterest.interest_type.in_(
+                       ("EXPLICITLY_SEEKING", "RECENTLY_ADDED")))
+            .group_by(ProductInterest.category)
+            .order_by(func.count(func.distinct(ProductInterest.company_id)).desc())
+        ).all()
+        stats.by_product_category = [{"category": c, "count": n} for c, n in rows]
+        rows = db.execute(
+            select(ProductInterest.interest_type, func.count(ProductInterest.id))
+            .where(ProductInterest.service_id == svc.id)
+            .group_by(ProductInterest.interest_type)
+        ).all()
+        stats.by_interest_type = [{"interest_type": t, "count": n} for t, n in rows]
+    except Exception:
+        db.rollback()
 
     stats.decision_makers_identified = db.execute(
         select(func.count(DecisionMaker.id))).scalar_one()

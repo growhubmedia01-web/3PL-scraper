@@ -115,8 +115,10 @@ BUSINESS_MODEL_MARKERS: dict[str, list[str]] = {
 # These are deliberately first-person service-offering phrasings. A brand
 # saying "we use a fulfillment partner" is a *customer* signal, not a
 # competitor - so bare words like "fulfillment" or "logistics" are not here.
-COMPETITOR_MARKERS = [
-    # 3PL / logistics providers
+LOGISTICS_PROVIDER_MARKERS = [
+    # 3PL / logistics providers. Applied unless a service sets
+    # config['exclude_logistics_providers'] = false - a wholesale distributor
+    # legitimately says "our distribution services".
     "we are a 3pl", "our 3pl services", "third party logistics provider",
     "third-party logistics provider", "our fulfillment services",
     "our fulfilment services", "fulfillment services for ecommerce",
@@ -126,6 +128,9 @@ COMPETITOR_MARKERS = [
     "pick and pack services", "order fulfillment services",
     "we handle your inventory", "your fulfillment partner",
     "we store your products", "our logistics services",
+]
+
+COMPETITOR_MARKERS = [
     # freight / transport
     "freight forwarding services", "we are a freight forwarder",
     "freight brokerage", "our courier service", "our transport services",
@@ -244,6 +249,11 @@ class Classification:
     relevant: bool = True
     rejection_reason: str | None = None
     evidence: dict[str, list[str]] = field(default_factory=dict)
+    # generic extensions driven by service config (007)
+    company_type: str | None = None
+    company_type_confidence: float | None = None
+    company_type_scores: dict[str, int] = field(default_factory=dict)
+    industry_hits: dict[str, list[str]] = field(default_factory=dict)
 
 
 def _detect_platform(pages: list[ExtractedPage]) -> tuple[str | None, list[str]]:
@@ -363,7 +373,8 @@ def _detect_physical(pages: list[ExtractedPage],
 
 def _detect_excluded_business(pages: list[ExtractedPage],
                               extra_types: list[str] | None = None,
-                              domain: str | None = None
+                              domain: str | None = None,
+                              include_logistics: bool = True
                               ) -> tuple[bool, list[str]]:
     """Is this a service business rather than a goods business?
 
@@ -371,7 +382,9 @@ def _detect_excluded_business(pages: list[ExtractedPage],
     is not disqualifying - selling it is.
     """
     text = " ".join(p.searchable for p in pages)
-    matched = [m for m in COMPETITOR_MARKERS if contains_phrase(text, m)]
+    markers = COMPETITOR_MARKERS + (LOGISTICS_PROVIDER_MARKERS
+                                    if include_logistics else [])
+    matched = [m for m in markers if contains_phrase(text, m)]
 
     # Config-supplied types are matched on the homepage/about copy only,
     # where a company describes itself, to avoid blog-post false positives.
@@ -465,6 +478,95 @@ def _detect_industry(pages: list[ExtractedPage]) -> str | None:
     return best if best and scores[best] >= 2 else None
 
 
+def classify_company_type(pages: list[ExtractedPage],
+                          markers: dict[str, list[str]],
+                          min_markers: int = 2,
+                          hybrids: dict[str, list[str]] | None = None
+                          ) -> tuple[str | None, float | None, dict[str, int],
+                                     dict[str, list[str]]]:
+    """What role does this company play in its supply chain?
+
+    Entirely driven by `markers` ({type: [phrases]}) from service config -
+    this function knows no industry. The type with the most distinct markers
+    wins (ties: first listed). `hybrids` maps a hybrid type to the component
+    types that must BOTH reach `min_markers`, e.g. a distributor that also
+    manufactures. Returns (type, confidence, scores, evidence).
+    """
+    if not markers:
+        return None, None, {}, {}
+    text = " ".join(p.searchable for p in pages)
+    evidence = {t: [m for m in phrases if contains_phrase(text, m)]
+                for t, phrases in markers.items()}
+    scores = {t: len(hits) for t, hits in evidence.items()}
+
+    for hybrid, parts in (hybrids or {}).items():
+        if parts and all(scores.get(p, 0) >= min_markers for p in parts):
+            top = sum(scores[p] for p in parts)
+            return hybrid, round(min(0.95, 0.4 + 0.08 * top), 2), scores, \
+                {k: v for k, v in evidence.items() if v}
+
+    order = list(markers)
+    ranked = sorted(order, key=lambda t: (-scores[t], order.index(t)))
+    best = ranked[0]
+    if scores[best] < min_markers:
+        return None, None, scores, {k: v for k, v in evidence.items() if v}
+    runner_up = scores[ranked[1]] if len(ranked) > 1 else 0
+    margin = scores[best] - runner_up
+    confidence = min(0.95, 0.35 + 0.1 * scores[best] + 0.05 * margin)
+    return best, round(confidence, 2), scores, \
+        {k: v for k, v in evidence.items() if v}
+
+
+def industry_marker_hits(pages: list[ExtractedPage],
+                         keywords: dict[str, list[str]]) -> dict[str, list[str]]:
+    text = " ".join(p.searchable for p in pages)[:200_000]
+    return {industry: [k for k in terms if contains_phrase(text, k)]
+            for industry, terms in keywords.items()}
+
+
+def _apply_qualification(result: "Classification", qualification: dict) -> None:
+    """Service-level eligibility, configured per service. Rejections always
+    record why (section 32) so nothing is reprocessed blindly."""
+    if not qualification:
+        return
+    reasons: list[str] = []
+
+    rejected_types = set(qualification.get("reject_company_types") or [])
+    eligible_types = set(qualification.get("eligible_company_types") or [])
+    if result.company_type and result.company_type in rejected_types:
+        reasons.append(f"company type '{result.company_type}' is not eligible "
+                       f"for this service")
+    elif (result.company_type is None
+          and qualification.get("unknown_company_type") == "reject"):
+        reasons.append("company type could not be established")
+    elif (result.company_type and eligible_types
+          and result.company_type not in eligible_types
+          and qualification.get("reject_non_eligible_types", True)):
+        reasons.append(f"company type '{result.company_type}' is not in the "
+                       f"eligible set")
+
+    allowed = set(qualification.get("allowed_countries") or [])
+    min_conf = float(qualification.get("min_country_confidence", 0.5))
+    if (allowed and result.country and result.country not in allowed
+            and (result.country_confidence or 0) >= min_conf):
+        reasons.append(f"country {result.country} outside the target "
+                       f"geography ({', '.join(sorted(allowed))})")
+
+    industry = qualification.get("required_industry")
+    if industry:
+        hits = result.industry_hits.get(industry, [])
+        minimum = int(qualification.get("min_industry_markers", 2))
+        if len(hits) < minimum:
+            reasons.append(f"insufficient {industry} evidence "
+                           f"({len(hits)} of {minimum} required markers)")
+        else:
+            result.industry = industry
+
+    if reasons:
+        result.relevant = False
+        result.rejection_reason = "; ".join(reasons)
+
+
 def _company_name(pages: list[ExtractedPage], domain: str) -> str | None:
     for page in pages:
         if page.page_type != "website":
@@ -481,8 +583,11 @@ def _company_name(pages: list[ExtractedPage], domain: str) -> str | None:
 
 
 def classify(company: Company, pages: list[ExtractedPage],
-             excluded_business_types: list[str] | None = None
-             ) -> Classification:
+             excluded_business_types: list[str] | None = None,
+             config=None) -> Classification:
+    """`config` (a ServiceConfig) is optional. Without it - or without the
+    007 keys in it - behaviour is exactly the pre-007 generic classifier."""
+    raw = getattr(config, "raw_config", None) or {}
     result = Classification()
     if not pages:
         result.relevant = False
@@ -493,7 +598,8 @@ def classify(company: Company, pages: list[ExtractedPage],
     # provider's own site is full of fulfillment vocabulary and would
     # otherwise score extremely well.
     is_excluded, excluded_ev = _detect_excluded_business(
-        pages, excluded_business_types, company.domain)
+        pages, excluded_business_types, company.domain,
+        include_logistics=raw.get("exclude_logistics_providers", True))
     if is_excluded:
         result.relevant = False
         result.rejection_reason = (
@@ -528,14 +634,41 @@ def classify(company: Company, pages: list[ExtractedPage],
         "physical_products": physical_ev, "country": country_ev,
     }
 
+    # ---- service-configured company type / industry / qualification ----
+    qualification = raw.get("qualification") or {}
+    type_markers = raw.get("company_type_markers") or {}
+    if type_markers:
+        ctype, cconf, cscores, cev = classify_company_type(
+            pages, type_markers,
+            int(qualification.get("company_type_min_markers", 2)),
+            raw.get("hybrid_company_types"))
+        result.company_type = ctype
+        result.company_type_confidence = cconf
+        result.company_type_scores = cscores
+        result.evidence["company_type"] = [
+            f"{t}: {', '.join(v[:4])}" for t, v in cev.items()]
+        # A wholesale distributor moves goods by definition, even when its
+        # site has no consumer shipping or returns policy.
+        if ctype and ctype in set(qualification.get("eligible_company_types") or []):
+            is_physical = True
+            result.is_physical_product = True
+    industry_kw = raw.get("industry_keywords") or {}
+    if industry_kw:
+        result.industry_hits = industry_marker_hits(pages, industry_kw)
+        result.evidence["industry"] = [
+            f"{i}: {', '.join(h[:6])}" for i, h in result.industry_hits.items() if h]
+
     # §32: reject early, and always record why so we never reprocess blindly.
     # Any brand that ships physical goods qualifies — ecommerce stores, brands
     # that sell through retailers, wholesale, FMCG, food & beverage, cosmetics,
-    # sporting goods, etc. They all need 3PL services.
+    # sporting goods, etc. (Which ones a service wants is decided by its
+    # configured qualification below.)
     if not is_physical:
         result.relevant = False
         result.rejection_reason = (
             "no physical-product evidence found — likely a SaaS or service business")
+        return result
+    _apply_qualification(result, qualification)
     return result
 
 
@@ -550,6 +683,14 @@ def apply_classification(db: Session, company: Company,
     company.currencies = result.currencies
     company.business_model = result.business_model
     company.sales_channels = result.sales_channels
+    if result.company_type_scores or result.company_type:
+        company.company_type = result.company_type
+        company.company_type_confidence = result.company_type_confidence
+        company.company_type_evidence = {
+            "scores": result.company_type_scores,
+            "markers": result.evidence.get("company_type", []),
+            "industry": result.evidence.get("industry", []),
+        }
     if result.name and not company.name:
         company.name = result.name
     if result.description and not company.description:

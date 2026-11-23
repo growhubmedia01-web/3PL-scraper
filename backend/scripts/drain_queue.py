@@ -16,6 +16,7 @@ progress you can actually watch.
 from __future__ import annotations
 
 import argparse
+import os
 import signal
 import sys
 import time
@@ -316,7 +317,8 @@ def main() -> int:
     parser.add_argument("--max-retries", type=int, default=5)
     parser.add_argument("--stall-limit", type=int, default=3,
                         help="stop after this many rounds with no progress")
-    parser.add_argument("--service", default="3pl")
+    parser.add_argument("--service", default=os.environ.get(
+        "DEFAULT_SERVICE_SLUG", "powersports_aftermarket_sourcing"))
     args = parser.parse_args()
 
     signal.signal(signal.SIGINT, _handle_interrupt)

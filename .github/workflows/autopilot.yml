@@ -1,4 +1,4 @@
-name: 3PL Autopilot Cron
+name: Autopilot (manual)
 
 on:
   # Scheduled runs are handled by cron-job.org instead (console.cron-job.org)
@@ -19,7 +19,7 @@ jobs:
         run: |
           curl --max-time 60 -X POST https://threepl-scraper.onrender.com/api/discovery/run \
             -H "Content-Type: application/json" \
-            -d '{"limit": 25}'
+            -d '{"limit": 20, "tier": 1, "max_queries": 5}'
 
       - name: Wait for discovery to complete
         run: sleep 30

@@ -1,7 +1,7 @@
 # Technical Documentation
 
 **Configurable B2B Intent Intelligence & Lead Discovery Platform**
-V1 service: Third-Party Logistics (3PL) — architecture supports additional services via configuration only.
+Default service: Powersports Aftermarket Product Sourcing (`docs/POWERSPORTS_SOURCING.md`). Legacy service: Third-Party Logistics (3PL), retained inactive. The architecture supports additional services via configuration only.
 
 Audience: engineers picking up, extending, or operating this system.
 
@@ -52,7 +52,8 @@ backend/
     workers/                    Celery tasks + beat schedule
   migrations/                  raw SQL for Supabase (run in order: 001, 002, 003, …)
   scripts/
-    seed.py                     creates schema + seeds the 3PL service config
+    seed.py                     creates schema + seeds services (--service all|3pl|<slug>)
+    services/                   data-defined services; build_service_seed.py generates 007
     drain_queue.py               operational helper for free-tier hosts (see docs/DRAINING_THE_QUEUE.md)
     check_setup.py                diagnoses a broken local setup
   tests/                        45 tests
@@ -63,7 +64,7 @@ frontend/
   src/lib/types.ts                 shared TS types mirroring backend schemas
 docs/
   ARCHITECTURE.md               the service-agnostic design principle, layer boundaries
-  SEGMENTS.md                    which company segments are targeted and why (3PL-specific)
+  SEGMENTS.md                    legacy 3PL segments (powersports: POWERSPORTS_SOURCING.md)
   RUNBOOK.md                      first-run steps, common problems, tuning without deploying
   DRAINING_THE_QUEUE.md            operating the synchronous queue processor on free-tier hosts
   QUERY_LIBRARY.md                 the discovery query set
@@ -83,7 +84,7 @@ docs/
 | `discovery_queries` | search queries used to find candidates for this service |
 | `service_roles` | which job titles matter, and their priority order |
 
-Adding a second service (e.g. "Packaging", "Freight") means **inserting rows**, not writing code — proven by `backend/tests/test_service_config.py::test_a_second_service_needs_only_new_rows`. `default_service_slug` in `config.py` is the only place "3pl" appears in application code (plus one docstring); grep for the exact test in `docs/ARCHITECTURE.md`.
+Adding a second service (e.g. "Packaging", "Freight") means **inserting rows**, not writing code — proven by `backend/tests/test_service_config.py::test_a_second_service_needs_only_new_rows`. `default_service_slug` in `config.py` now points at `powersports_aftermarket_sourcing`. The remaining "3pl" references in application code are legacy-compatibility paths, classified in `docs/POWERSPORTS_SOURCING.md`.
 
 Layer boundaries enforced by convention and tests:
 
@@ -269,7 +270,7 @@ All settings are environment-driven via `pydantic-settings`, loaded from `backen
 - **Infra**: `redis_url`, `sentry_dsn`.
 - **Scoring defaults**: `score_weight_deterministic/ai/evidence`, `decision_maker_threshold`, `ai_analysis_min_raw_score` — all overridable per-service via the `services.config` JSONB.
 - **Cost guards**: as above.
-- **`default_service_slug`**: the only "3pl" reference in application code; the entire product retargets by pointing this elsewhere and seeding a new service's rows.
+- **`default_service_slug`**: `powersports_aftermarket_sourcing` (was `3pl`); the product retargets by pointing this elsewhere and seeding a new service's rows. Migration 007 added `company_facts`, `product_interests` and company type/size/HQ columns, plus generic config keys (signal dimensions, signal rules, qualification, taxonomy) documented in `docs/POWERSPORTS_SOURCING.md`.
 
 ---
 
