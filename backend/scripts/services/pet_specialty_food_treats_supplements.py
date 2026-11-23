@@ -669,6 +669,11 @@ COMPANY_TYPE_MARKERS: dict[str, list[str]] = {
         "products we carry", "lines we carry", "territory footprint",
         "independent pet specialty", "pet specialty segment",
         "pet speciality segment",
+        # how distributors describe themselves (brands do not say this)
+        "pet supply distributor", "pet supplies distributor",
+        "wholesale pet supply distributor", "full-line distributor",
+        "full line distributor", "regional distributor",
+        "regional pet supply distributor", "serving independent retailers",
         # who they sell to - two distinct phrases at most
         "independent pet retailers", "pet specialty retailers"],
     "manufacturer": [
