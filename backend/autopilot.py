@@ -123,6 +123,9 @@ def main():
     target = args.target_leads
     company_cap = args.target_companies
     empty_discoveries = 0
+    # The status queue count covers every service, but each service only
+    # crawls its own companies, so trust the last batch for THIS service.
+    own_queue_empty = False
     batch_size = args.batch_size
     pause_sec = args.pause_seconds
 
@@ -160,7 +163,7 @@ def main():
         try:
             status = get_status(api_base)
             total = status.get("total_companies", 0)
-            queued = status.get("queued", 0)
+            queued = 0 if own_queue_empty else status.get("queued", 0)
             crawled = status.get("crawled", 0)
             opps = count_leads(api_base, service)
             if opps is None or not status:
@@ -197,7 +200,8 @@ def main():
                 time.sleep(3)
 
             # Crawl pending companies in queue
-            process_queue(api_base, service, limit=batch_size, max_seconds=180)
+            batch = process_queue(api_base, service, limit=batch_size, max_seconds=180)
+            own_queue_empty = bool(batch) and batch.get("queued_at_start", 1) == 0
 
             log(f"Pausing {pause_sec}s before next batch...")
             time.sleep(pause_sec)
