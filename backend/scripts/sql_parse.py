@@ -19,6 +19,8 @@ SEED_FILES = ("003_seed_3pl.sql", "004_broaden_beyond_ecommerce.sql")
 SERVICE_SEED_GROUPS: dict[str, tuple[str, ...]] = {
     "3pl": SEED_FILES,
     "powersports_aftermarket_sourcing": ("007_powersports_aftermarket_sourcing.sql",),
+    "pet_specialty_food_treats_supplements": (
+        "010_pet_specialty_food_treats_supplements.sql",),
 }
 
 # Every file that seeds service rows - for the structural SQL tests.

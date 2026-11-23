@@ -123,4 +123,28 @@ def get_taxonomy(service_ref: str, db: Session = Depends(get_db)):
         "signals": [{"signal_type": s.signal_type, "signal_name": s.signal_name,
                      "dimension": config.dimension_of(s.signal_type)}
                     for s in config.signals.values()],
+        "ui_labels": ui_labels(config.raw_config, service.name),
+    }
+
+
+DEFAULT_INTEREST_LABELS = {
+    "EXPLICITLY_SEEKING": "Explicitly seeking",
+    "RECENTLY_ADDED": "Recently added",
+    "CURRENTLY_CARRIED": "Currently carried",
+    "INFERRED_FIT": "Inferred fit",
+}
+
+
+def ui_labels(raw_config: dict, service_name: str) -> dict:
+    """Display wording that differs per service (the dashboard has no
+    service-specific strings of its own). Stored interest codes never change;
+    only how they are named on screen."""
+    labels = raw_config.get("ui_labels") or {}
+    return {
+        "title": labels.get("title") or service_name,
+        "segment": labels.get("segment") or "Vehicle segment",
+        "interest_types": {**DEFAULT_INTEREST_LABELS,
+                           **(labels.get("interest_types") or {})},
+        "no_product_demand_message": raw_config.get("no_product_demand_message")
+        or "Specific product demand not publicly disclosed.",
     }

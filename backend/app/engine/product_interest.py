@@ -10,6 +10,11 @@ strong the evidence for each answer is. Driven entirely by service config:
   adjacent_categories      {category: [adjacent categories]}
   brand_patterns           [regex with one capture group for the brand]
   carried_page_types       page types read for CURRENTLY_CARRIED
+  product_attributes       {attribute: {value: [terms]}}  (optional) - e.g.
+                           format, protein, life stage, stated claims. Only
+                           values whose terms appear in the evidence text
+                           are recorded; claims are stored as the company's
+                           own wording, never as verified facts.
 
 Hard rules, enforced here:
   * Every record points at the source it was read from. No source, no record.
@@ -59,6 +64,7 @@ class InterestRecord:
     vehicle_segments: list[str] = field(default_factory=list)
     vehicle_platforms: list[str] = field(default_factory=list)
     brand: str | None = None
+    attributes: dict[str, list[str]] = field(default_factory=dict)
     reason: str = ""
     signal_type: str | None = None
     signal_id: str | None = None
@@ -107,6 +113,20 @@ def match_segments(text: str, segments: dict[str, list[str]]) -> list[str]:
     low = (text or "").lower()
     return [seg for seg, terms in segments.items()
             if any(contains_phrase(low, t) for t in terms)]
+
+
+def match_attributes(text: str, vocab: dict[str, dict[str, list[str]]]
+                     ) -> dict[str, list[str]]:
+    """{attribute: [values]} whose terms appear in text. Empty attributes
+    are omitted, so nothing is ever recorded without textual evidence."""
+    low = (text or "").lower()
+    out: dict[str, list[str]] = {}
+    for attribute, values in (vocab or {}).items():
+        hits = [value for value, terms in values.items()
+                if any(contains_phrase(low, v) for t in terms for v in _variants(t))]
+        if hits:
+            out[attribute] = hits
+    return out
 
 
 def match_platforms(text: str, platforms: list[str]) -> list[str]:
@@ -180,6 +200,7 @@ def build_interests(company: Company, signals: list[Signal],
     exclude = {(company.name or "").lower(), company.domain.split(".")[0].lower()}
     exclude.discard("")
     records: dict[tuple, InterestRecord] = {}
+    attribute_vocab = config.raw_config.get("product_attributes") or {}
 
     def add(record: InterestRecord) -> None:
         if not (record.source_id or record.source_url):
@@ -207,6 +228,7 @@ def build_interests(company: Company, signals: list[Signal],
         platforms = match_platforms(window, config.vehicle_platforms)
         brands = extract_brands(window, config, exclude)
         brand = brands[0] if brands else None
+        attributes = match_attributes(window, attribute_vocab)
         signal_name = config.signals.get(signal.signal_type)
         label = signal_name.signal_name if signal_name else signal.signal_type
         event = _event_date(window)
@@ -219,7 +241,7 @@ def build_interests(company: Company, signals: list[Signal],
                     interest_type=interest_type, category=category,
                     subcategory=subcategory, products=terms,
                     vehicle_segments=segments, vehicle_platforms=platforms,
-                    brand=brand,
+                    brand=brand, attributes=attributes,
                     reason=f"{label}: products named in the evidence",
                     signal_type=signal.signal_type, signal_id=signal.id,
                     source_id=source.id, source_url=source.url,
@@ -231,7 +253,7 @@ def build_interests(company: Company, signals: list[Signal],
             add(InterestRecord(
                 interest_type=interest_type, category=None, subcategory=None,
                 vehicle_segments=segments, vehicle_platforms=platforms,
-                brand=brand,
+                brand=brand, attributes=attributes,
                 reason=f"{label}. {config.no_product_demand_message}",
                 signal_type=signal.signal_type, signal_id=signal.id,
                 source_id=source.id, source_url=source.url,
@@ -261,6 +283,8 @@ def build_interests(company: Company, signals: list[Signal],
             add(InterestRecord(
                 interest_type=CURRENTLY_CARRIED, category=category,
                 subcategory=subcategory, products=terms,
+                vehicle_segments=match_segments(sentence, config.vehicle_segments),
+                attributes=match_attributes(sentence, attribute_vocab),
                 reason="Present in the current assortment; this does not "
                        "establish new buying intent",
                 source_id=source.id if source else None, source_url=page.url,
@@ -309,7 +333,7 @@ def persist_interests(db: Session, company: Company, config: ServiceConfig,
             category=r.category, subcategory=r.subcategory,
             products=r.products, vehicle_segments=r.vehicle_segments,
             vehicle_platforms=r.vehicle_platforms, brand=r.brand,
-            reason=r.reason, source_id=r.source_id, source_url=r.source_url,
+            attributes=r.attributes, reason=r.reason, source_id=r.source_id, source_url=r.source_url,
             published_at=r.published_at, event_date=r.event_date,
             evidence=r.evidence, confidence=r.confidence)
         db.add(row)

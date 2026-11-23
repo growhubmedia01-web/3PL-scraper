@@ -150,6 +150,7 @@ class ProductInterestOut(ORMBase):
     vehicle_segments: list[str] = []
     vehicle_platforms: list[str] = []
     brand: str | None = None
+    attributes: dict[str, list[str]] | None = None
     reason: str | None = None
     source_url: str | None = None
     published_at: datetime | None = None

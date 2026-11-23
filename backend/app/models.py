@@ -400,6 +400,9 @@ class ProductInterest(Base):
     vehicle_segments: Mapped[list] = mapped_column(JSONType, default=list)
     vehicle_platforms: Mapped[list] = mapped_column(JSONType, default=list)
     brand: Mapped[str | None] = mapped_column(Text)
+    # 009: service-defined attributes read from the evidence text, e.g.
+    # {"format": ["Soft chews"], "stated_claims": ["Supports joint health"]}
+    attributes: Mapped[dict] = mapped_column(JSONType, default=dict)
     reason: Mapped[str | None] = mapped_column(Text)
     source_id: Mapped[str | None] = mapped_column(
         GUID, ForeignKey("sources.id", ondelete="SET NULL"))

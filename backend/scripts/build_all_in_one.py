@@ -26,12 +26,17 @@ PARTS = [
      "SEED - Powersports Aftermarket Product Sourcing (default service)"),
     ("008_source_types.sql",
      "SCHEMA - brand, supplier and dealer page source types"),
+    ("009_product_interest_attributes.sql",
+     "SCHEMA - product-interest attributes: format, claims, species detail"),
+    ("010_pet_specialty_food_treats_supplements.sql",
+     "SEED - Pet Specialty Food, Treats & Supplements"),
 ]
 
 HEADER = """-- =====================================================================
 --  ALL-IN-ONE MIGRATION
 --  Configurable B2B Intent Intelligence Platform
 --  Default service: powersports_aftermarket_sourcing
+--  Also seeded (active): pet_specialty_food_treats_supplements
 --  Legacy service retained (inactive): 3pl
 --
 --  Paste this entire file into the Supabase SQL Editor and press Run.
@@ -44,6 +49,8 @@ HEADER = """-- =================================================================
 --  Source: 001_init.sql + 002_rls.sql + 003_seed_3pl.sql
 --          + 004_broaden_beyond_ecommerce.sql + 006_linkedin_url.sql
 --          + 007_powersports_aftermarket_sourcing.sql + 008_source_types.sql
+--          + 009_product_interest_attributes.sql
+--          + 010_pet_specialty_food_treats_supplements.sql
 --  (005_query_library.sql - the 8k-query legacy 3PL library - is optional
 --   and run separately.)
 --  Rebuild: python -m scripts.build_all_in_one

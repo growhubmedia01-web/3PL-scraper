@@ -33,6 +33,7 @@ export interface ProductInterest {
   brand: string | null; reason: string | null; source_url: string | null
   published_at: string | null; event_date: string | null
   evidence: string | null; confidence: number
+  attributes?: Record<string, string[]> | null
 }
 
 export interface CompanyFact {
@@ -46,6 +47,14 @@ export interface Taxonomy {
   vehicle_segments: string[]; vehicle_platforms: string[]
   company_types: string[]; employee_bands: string[]
   signals: { signal_type: string; signal_name: string; dimension: string }[]
+  ui_labels?: UiLabels
+}
+
+export interface UiLabels {
+  title: string
+  segment: string
+  interest_types: Record<InterestType, string>
+  no_product_demand_message: string
 }
 
 export interface Lead {

@@ -39,6 +39,10 @@ CSV_COLUMNS = [
     "Product Demand Summary", "Explicitly Seeking", "Recently Added",
     "Currently Carried", "Inferred Fit", "Vehicle Segments",
     "Brands Involved", "Product Evidence URLs", "AI Confidence",
+    # 009 - product attributes as STATED in the evidence (format, protein,
+    # life stage, the company's own claims). "Vehicle Segments" above holds
+    # the service's segments - species for the pet service.
+    "Product Attributes",
 ]
 
 FORBIDDEN_SUBSTRINGS = ("email", "e-mail", "mail")
@@ -142,6 +146,13 @@ def export_csv(
         segments = list(dict.fromkeys(seg for r in pi for seg in (r.vehicle_segments or [])))
         brands = list(dict.fromkeys(r.brand for r in pi if r.brand))
         pi_urls = list(dict.fromkeys(r.source_url for r in pi if r.source_url))
+        attrs: dict[str, list[str]] = {}
+        for r in pi:
+            for name, values in (getattr(r, "attributes", None) or {}).items():
+                attrs.setdefault(name, [])
+                attrs[name] += [v for v in values if v not in attrs[name]]
+        attr_text = "; ".join(f"{name.replace('_', ' ')}: {', '.join(values)}"
+                              for name, values in sorted(attrs.items()) if values)
         writer.writerow([
             company.name or company.domain,
             company.website or f"https://{company.domain}",
@@ -179,6 +190,7 @@ def export_csv(
             "; ".join(brands),
             " | ".join(pi_urls[:10]),
             f"{opportunity.confidence:.2f}" if opportunity.confidence is not None else "",
+            attr_text,
         ])
 
     buffer.seek(0)

@@ -152,8 +152,9 @@ def render(module) -> str:
         f"({sql_str(q.text)}, {sql_str(q.country)}, {q.tier})" for q in library)
     tiers = module.stats(library)["by_tier"]
 
+    number = MIGRATION_FILES[slug][:3]
     return f"""-- =====================================================================
--- 007  {module.NAME.upper()}
+-- {number}  {module.NAME.upper()}
 --
 -- Service slug: {slug}
 -- New default service. Additive and idempotent: safe to re-run, safe on a

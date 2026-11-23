@@ -245,7 +245,8 @@ def test_python_seed_does_not_contradict_the_sql_seed():
     "001_init.sql", "002_rls.sql", "003_seed_3pl.sql",
     "004_broaden_beyond_ecommerce.sql", "005_query_library.sql",
     "006_linkedin_url.sql", "007_powersports_aftermarket_sourcing.sql",
-    "008_source_types.sql", "ALL_IN_ONE.sql",
+    "008_source_types.sql", "009_product_interest_attributes.sql",
+    "010_pet_specialty_food_treats_supplements.sql", "ALL_IN_ONE.sql",
 ])
 def test_migrations_are_pure_ascii(name: str):
     """SQL files get opened in editors that re-save as cp1252, which turns an
@@ -268,7 +269,8 @@ def test_migrations_are_pure_ascii(name: str):
     "001_init.sql", "002_rls.sql", "003_seed_3pl.sql",
     "004_broaden_beyond_ecommerce.sql", "005_query_library.sql",
     "006_linkedin_url.sql", "007_powersports_aftermarket_sourcing.sql",
-    "008_source_types.sql", "ALL_IN_ONE.sql",
+    "008_source_types.sql", "009_product_interest_attributes.sql",
+    "010_pet_specialty_food_treats_supplements.sql", "ALL_IN_ONE.sql",
 ])
 def test_migrations_use_lf_line_endings(name: str):
     assert b"\r\n" not in (MIGRATIONS / name).read_bytes(), (

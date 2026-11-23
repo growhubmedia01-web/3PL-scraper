@@ -2,6 +2,7 @@ import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import LeadDetail from './pages/LeadDetail'
 import Leads from './pages/Leads'
+import { useLabels } from './lib/useTaxonomy'
 
 const NAV = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -9,6 +10,7 @@ const NAV = [
 ]
 
 export default function App() {
+  const labels = useLabels()
   return (
     <div className="min-h-screen bg-ink-50 text-ink-900">
       <header className="bg-white border-b border-ink-200 sticky top-0 z-20">
@@ -30,7 +32,7 @@ export default function App() {
             ))}
           </nav>
           <div className="ml-auto text-xs text-ink-400">
-            Powersports Aftermarket Product Sourcing · US
+            {labels.title}
           </div>
         </div>
       </header>
