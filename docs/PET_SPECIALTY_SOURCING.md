@@ -104,10 +104,10 @@ publicly disclosed."*
 
 ## Discovery
 
-- **Query library:** 84 queries in four tiers:
+- **Query library:** 228 queries in four tiers:
   - 14 supplier-intent queries;
   - 29 portfolio and category-expansion queries;
-  - 33 distributor-discovery queries;
+  - 177 distributor-discovery queries, including 144 state-by-state ones;
   - 8 hiring and expansion queries.
 - **Blocked domains:** regulators (FDA, AAFCO, NASC), trade publications
   (Pet Food Processing, Petfood Industry, Pet Business, Pet Age, Global Pet
