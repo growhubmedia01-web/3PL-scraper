@@ -676,3 +676,18 @@ def test_23b_distributor_with_brand_application_qualifies(db, pet_config):
     assert result.company_type == "pet_specialty_distributor"
     assert "supplier_application_open" in signals
     assert not by_type(interests, "EXPLICITLY_SEEKING")
+
+
+def test_23c_distributor_self_description_qualifies(db, pet_config):
+    """Patterns from the live run: a regional and a full-line distributor
+    that describe themselves without any line-card or brand wording."""
+    company = make_company(db, "lakesidepetsupply.com")
+    result = classify(company, [
+        page("https://lakesidepetsupply.com",
+             "We are a family-owned regional pet supply distributor and a "
+             "full-line wholesale pet supply distributor serving independent "
+             "retailers with pet food and treats.", "Lakeside Pet Supply"),
+        page("https://lakesidepetsupply.com/contact", "12 Lake Rd, Erie, PA 16501"),
+    ], pet_config.excluded_business_types, config=pet_config)
+    assert result.company_type == "pet_specialty_distributor"
+    assert result.relevant, result.rejection_reason
