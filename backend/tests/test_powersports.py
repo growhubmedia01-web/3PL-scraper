@@ -316,6 +316,65 @@ def test_08_retailer_repair_shop_and_manufacturer_do_not_qualify(
 
 
 # ---------------------------------------------------------------------
+# TEST 8b - US only: a company must be positively located in the US
+# ---------------------------------------------------------------------
+_CORE = ("We are a wholesale distributor of aftermarket powersports parts for "
+         "ATV, UTV and motorcycle dealers. Dealers only. Become a dealer for "
+         "dealer pricing through our dealer portal. ")
+
+
+@pytest.mark.parametrize("domain,home,contact,expected_country,qualifies", [
+    # US, recognised from a state + ZIP or "City, ST" alone
+    ("acme.com", _CORE, "100 Main St, Dallas, TX 75201", "US", True),
+    ("acme.com", _CORE, "Visit us in Elkhart, IN.", "US", True),
+    ("acme.com", _CORE + "Family owned in Fargo, North Dakota.", "Call us.", "US", True),
+    ("acme.com", _CORE, "Albuquerque, NM 87102", "US", True),
+    # US distributors that SELL into Canada/Mexico stay US
+    ("acme.com", _CORE + "Serving dealers in the US and Canada.",
+     "Dallas, TX 75201", "US", True),
+    ("acme.com", _CORE + "We ship to dealers in Canada and Mexico.",
+     "Dallas, TX 75201", "US", True),
+    # no location evidence -> rejected, not waved through
+    ("acme.com", _CORE, "Call us or email the sales team.", None, False),
+    # a bare 5-digit postcode is not a US ZIP (Germany, Mexico)
+    ("acme.com", _CORE, "Hauptstrasse 5, 80331 Muenchen", None, False),
+    ("acme.com", _CORE + "Distribuidor en Monterrey, Mexico.",
+     "Monterrey, N.L. 64000", "MX", False),
+    # non-US companies, including ones that say they serve the US
+    ("acme.ca", _CORE + "Serving dealers across Canada.", "Toronto, ON M5V 2T6", "CA", False),
+    ("acme.com", _CORE + "Canadian owned, serving the United States.",
+     "Barrie, Ontario L4N 6B5", "CA", False),
+    ("acme.com", _CORE + "Based in Quebec.", "1200 Rue Principale, Laval, QC H7S 1Z4",
+     "CA", False),
+    ("acme.com", _CORE, "Unit 4, Birmingham B12 0XS, England", "GB", False),
+    ("acme.com.au", _CORE + "Australia's leading distributor.", "Sydney NSW 2000", "AU", False),
+])
+def test_08b_only_companies_located_in_the_us_qualify(
+        db, ps_config, domain, home, contact, expected_country, qualifies):
+    company = make_company(db, domain)
+    pages = [page(f"https://{domain}", home, "Acme Distribution"),
+             page(f"https://{domain}/contact", contact)]
+    result = classify(company, pages, ps_config.excluded_business_types,
+                      config=ps_config)
+    assert result.country == expected_country
+    assert result.relevant is qualifies, result.rejection_reason
+    if not qualifies:
+        assert "geography (US)" in result.rejection_reason
+
+
+def test_08c_lenient_country_gate_is_unchanged_for_other_services(db, ps_config):
+    """require_country_evidence is opt-in: without it, unknown location
+    still passes, exactly as before."""
+    from app.engine.classifier import _apply_qualification, Classification
+    result = Classification(country=None, country_confidence=0.0)
+    _apply_qualification(result, {"allowed_countries": ["US"]})
+    assert result.relevant
+    _apply_qualification(result, {"allowed_countries": ["US"],
+                                  "require_country_evidence": True})
+    assert not result.relevant
+
+
+# ---------------------------------------------------------------------
 # TEST 9 - freshness
 # ---------------------------------------------------------------------
 def test_09_recent_sourcing_announcement_outscores_an_old_one(db, ps_config):

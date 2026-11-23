@@ -660,6 +660,8 @@ CONFIG: dict = {
         "company_type_min_markers": 2,
         "allowed_countries": ["US"],
         "min_country_confidence": 0.6,
+        # US only: a company must be positively located in the US
+        "require_country_evidence": True,
         "required_industry": "powersports",
         "min_industry_markers": 2,
     },

@@ -35,8 +35,14 @@ The qualification gate (`services.config.qualification`) works like this:
 - **Eligible:** wholesale distributor, importer, and the two hybrids.
 - **Rejected:** dealer/retailer, service/repair provider, manufacturer-only,
   brand owner. The reason is always stored in `companies.rejection_reason`.
-- **Geography:** the US only. A different country is rejected only when its
-  detection confidence is at least 0.6.
+- **Geography:** the US only, strictly (`require_country_evidence`). The
+  company must be positively located in the US with at least 0.6
+  confidence: a US state + ZIP, "City, ST", "City, Statename", a `.us`
+  domain or an explicit mention. No location evidence means rejected, and
+  so does an ambiguous one. A bare 5-digit postcode does not count, because
+  Mexico, Germany and others use them too. Addresses and country domains
+  outweigh country names in prose, so a US distributor "serving dealers in
+  the US and Canada" stays US.
 - **Industry:** at least 2 distinct powersports markers.
 - **Unknown type** is allowed, but scored down through the fit multiplier.
 - **Shopify is not required.** The platform and ecommerce checks are no
