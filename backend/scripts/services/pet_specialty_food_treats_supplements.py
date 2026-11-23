@@ -672,7 +672,17 @@ COMPANY_TYPE_MARKERS: dict[str, list[str]] = {
         "find a retailer", "store locator", "where to buy",
         "looking for distributors", "become a distributor",
         "distributor inquiries", "subscribe and save", "shop now",
-        "our products are sold", "available at fine pet retailers"],
+        "our products are sold", "available at fine pet retailers",
+        # direct-to-consumer storefront language
+        "add to cart", "free shipping on orders", "orders ship within",
+        "shop all", "shop the collection", "our story", "new arrivals",
+        "join our pack", "learn more about these products"],
+    # software sold to pet brands or retailers - never a buyer of product
+    "software_or_service_vendor": [
+        "book a demo", "request a demo", "free trial", "start your free trial",
+        "go to dashboard", "pricing plans", "per month", "saas",
+        "software platform", "find the buyers", "find retailers for your",
+        "sign up free", "api access"],
     "pet_retailer": [
         "visit our store", "store hours", "in-store pickup", "curbside pickup",
         "shop our store", "pet boutique", "frequent buyer program",
@@ -847,7 +857,7 @@ CONFIG: dict = {
                                    "veterinary_supplier"],
         "reject_company_types": ["pet_retailer", "veterinary_clinic",
                                  "pet_service_provider", "manufacturer",
-                                 "brand_owner"],
+                                 "brand_owner", "software_or_service_vendor"],
         "unknown_company_type": "allow",
         "company_type_min_markers": 2,
         "allowed_countries": ["US"],
