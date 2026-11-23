@@ -232,6 +232,7 @@ function LeadRow({ lead }: { lead: Lead }) {
           )}
           {lead.employee_band && <Chip>{humanizeSignal(lead.employee_band)}</Chip>}
           {lead.urgency && <Chip tone="red">{lead.urgency} urgency</Chip>}
+          {lead.location_unverified && <Chip>location unverified</Chip>}
         </div>
         <div className="text-sm text-ink-500 mt-0.5">
           {lead.domain}

@@ -24,6 +24,8 @@ PARTS = [
     ("006_linkedin_url.sql", "SCHEMA - company LinkedIn URL columns"),
     ("007_powersports_aftermarket_sourcing.sql",
      "SEED - Powersports Aftermarket Product Sourcing (default service)"),
+    ("008_source_types.sql",
+     "SCHEMA - brand, supplier and dealer page source types"),
 ]
 
 HEADER = """-- =====================================================================
@@ -41,7 +43,7 @@ HEADER = """-- =================================================================
 --  GENERATED FILE - do not edit directly.
 --  Source: 001_init.sql + 002_rls.sql + 003_seed_3pl.sql
 --          + 004_broaden_beyond_ecommerce.sql + 006_linkedin_url.sql
---          + 007_powersports_aftermarket_sourcing.sql
+--          + 007_powersports_aftermarket_sourcing.sql + 008_source_types.sql
 --  (005_query_library.sql - the 8k-query legacy 3PL library - is optional
 --   and run separately.)
 --  Rebuild: python -m scripts.build_all_in_one

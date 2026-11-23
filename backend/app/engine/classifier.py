@@ -569,7 +569,8 @@ def industry_marker_hits(pages: list[ExtractedPage],
             for industry, terms in keywords.items()}
 
 
-def _apply_qualification(result: "Classification", qualification: dict) -> None:
+def _apply_qualification(result: "Classification", qualification: dict,
+                         domain: str | None = None) -> None:
     """Service-level eligibility, configured per service. Rejections always
     record why (section 32) so nothing is reprocessed blindly."""
     if not qualification:
@@ -595,8 +596,24 @@ def _apply_qualification(result: "Classification", qualification: dict) -> None:
     geography = ", ".join(sorted(allowed))
     if allowed and qualification.get("require_country_evidence"):
         # Strict: the company must be positively located inside the target
-        # geography. Unknown or ambiguous location is a rejection, not a pass.
-        if result.country is None:
+        # geography. Unknown or ambiguous location is a rejection, not a pass -
+        # unless the service opts into "unverified" leads: a site on a generic
+        # TLD with no foreign evidence at all, found by a search scoped to a
+        # single target country, is kept and flagged for a human to check.
+        unverified_tlds = qualification.get("allow_unverified_location_tlds") or []
+        ambiguous = (result.country is None or (
+            result.country in allowed
+            and (result.country_confidence or 0) < min_conf))
+        tld = (domain or "").lower().rsplit(".", 1)[-1] if domain else ""
+        if (ambiguous and len(allowed) == 1 and unverified_tlds
+                and tld in {t.lower().lstrip(".") for t in unverified_tlds}):
+            target = next(iter(allowed))
+            result.country = target
+            result.evidence.setdefault("country", []).append(
+                f"UNVERIFIED: no {target} address found on the site; kept "
+                f"because the domain is .{tld}, no foreign evidence was "
+                f"found and it came from a {target}-scoped search")
+        elif result.country is None:
             reasons.append(f"no evidence the company is located in the target "
                            f"geography ({geography})")
         elif result.country not in allowed:
@@ -717,6 +734,16 @@ def classify(company: Company, pages: list[ExtractedPage],
         result.evidence["industry"] = [
             f"{i}: {', '.join(h[:6])}" for i, h in result.industry_hits.items() if h]
 
+    # A service that sells into a goods-only industry can say that industry
+    # evidence is physical-product evidence: a powersports parts distributor
+    # moves goods even when its site has no cart, shipping or returns page.
+    required_industry = qualification.get("required_industry")
+    if (not is_physical and required_industry
+            and qualification.get("industry_implies_physical")
+            and result.industry_hits.get(required_industry)):
+        is_physical = True
+        result.is_physical_product = True
+
     # §32: reject early, and always record why so we never reprocess blindly.
     # Any brand that ships physical goods qualifies — ecommerce stores, brands
     # that sell through retailers, wholesale, FMCG, food & beverage, cosmetics,
@@ -727,7 +754,7 @@ def classify(company: Company, pages: list[ExtractedPage],
         result.rejection_reason = (
             "no physical-product evidence found — likely a SaaS or service business")
         return result
-    _apply_qualification(result, qualification)
+    _apply_qualification(result, qualification, company.domain)
     return result
 
 

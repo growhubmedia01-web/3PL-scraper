@@ -51,6 +51,7 @@ export interface Taxonomy {
 export interface Lead {
   id: string; company_id: string; company_name: string | null
   domain: string; website: string | null; country: string | null
+  location_unverified?: boolean
   industry: string | null; platform: string | null
   business_model: string | null
   score: number; intent_level: IntentLevel; urgency: string | null
@@ -132,6 +133,7 @@ export interface LeadDetail {
   product_interests?: ProductInterest[]
   company_facts?: CompanyFact[]
   product_demand_summary?: string | null
+  location_unverified?: boolean
   signal_dimensions?: Record<string, string>
 }
 

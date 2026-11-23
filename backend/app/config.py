@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     # ---- llm ----
     ai_provider: str = "groq"
     ai_fallback_providers: str = "gemini,openai"
-    ai_model: str = "llama-3.3-70b-versatile"
+    ai_model: str = "openai/gpt-oss-120b"   # llama-3.3-70b-versatile was retired by Groq
     ai_temperature: float = 0.1
     ai_max_tokens: int = 2048
     ai_timeout: int = 60

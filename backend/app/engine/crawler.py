@@ -152,38 +152,39 @@ def crawl_company(db: Session, company: Company,
     result = CrawlResult(company_id=company.id, domain=company.domain)
     base = company.website or root_url(company.domain)
 
-    # Set status='crawling' in a *separate* short-lived session with a tight
-    # lock_timeout. If another connection holds the row lock we give up in 2s
-    # and mark the company as error rather than timing out the whole batch
-    # session (which would rollback the PipelineRun and all other work done
-    # so far in the outer db session).
-    from app.db import session_scope as _ss
+    # Set status='crawling'. On Postgres, use a *separate* short-lived session
+    # with a tight lock_timeout. On SQLite, avoid opening a second connection
+    # (which deadlocks against the outer transaction) and use db directly.
     company.status = "crawling"
-    try:
-        with _ss() as _lock_db:
-            from sqlalchemy import text as _t
-            _lock_db.execute(_t("SET LOCAL lock_timeout = '2s'"))
-            _lock_db.execute(_t(
-                "UPDATE companies SET status='crawling', updated_at=NOW() "
-                "WHERE id=:id AND status IN ('queued','discovered')"
-            ), {"id": str(company.id)})
-    except Exception as exc:
-        log.warning("Could not lock %s for crawling (lock_timeout) - marking error",
-                    company.domain)
-        # Mark as error in yet another fresh session so it leaves the queue.
+    if db.bind.dialect.name == "sqlite":
+        company.updated_at = datetime.now(timezone.utc)
+        db.flush()
+    else:
+        from app.db import session_scope as _ss
         try:
-            with _ss() as _err_db:
-                from sqlalchemy import text as _t2
-                _err_db.execute(_t2(
-                    "UPDATE companies SET status='error', "
-                    "rejection_reason='persistent row lock - skipped', "
-                    "updated_at=NOW() WHERE id=:id"
+            with _ss() as _lock_db:
+                from sqlalchemy import text as _t
+                _lock_db.execute(_t("SET LOCAL lock_timeout = '2s'"))
+                _lock_db.execute(_t(
+                    "UPDATE companies SET status='crawling', updated_at=NOW() "
+                    "WHERE id=:id AND status IN ('queued','discovered')"
                 ), {"id": str(company.id)})
-        except Exception:
-            pass
-        company.status = "error"
-        result.error = f"lock conflict: {exc}"
-        return result
+        except Exception as exc:
+            log.warning("Could not lock %s for crawling (lock_timeout) - marking error",
+                        company.domain)
+            try:
+                with _ss() as _err_db:
+                    from sqlalchemy import text as _t2
+                    _err_db.execute(_t2(
+                        "UPDATE companies SET status='error', "
+                        "rejection_reason='persistent row lock - skipped', "
+                        "updated_at=NOW() WHERE id=:id"
+                    ), {"id": str(company.id)})
+            except Exception:
+                pass
+            company.status = "error"
+            result.error = f"lock conflict: {exc}"
+            return result
 
 
     timeout = httpx.Timeout(settings.crawl_timeout_seconds)

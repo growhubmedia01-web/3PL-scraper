@@ -334,10 +334,13 @@ _CORE = ("We are a wholesale distributor of aftermarket powersports parts for "
      "Dallas, TX 75201", "US", True),
     ("acme.com", _CORE + "We ship to dealers in Canada and Mexico.",
      "Dallas, TX 75201", "US", True),
-    # no location evidence -> rejected, not waved through
-    ("acme.com", _CORE, "Call us or email the sales team.", None, False),
-    # a bare 5-digit postcode is not a US ZIP (Germany, Mexico)
-    ("acme.com", _CORE, "Hauptstrasse 5, 80331 Muenchen", None, False),
+    # no location evidence on a generic TLD -> kept, flagged UNVERIFIED (08g)
+    ("acme.com", _CORE, "Call us or email the sales team.", "US", True),
+    # ...on a country TLD -> rejected
+    ("acme.de", _CORE, "Call us or email the sales team.", "DE", False),
+    # a bare 5-digit postcode is not a US ZIP: nothing proves Germany either,
+    # so on .com this is an unverified lead for a human to check
+    ("acme.com", _CORE, "Hauptstrasse 5, 80331 Muenchen", "US", True),
     ("acme.com", _CORE + "Distribuidor en Monterrey, Mexico.",
      "Monterrey, N.L. 64000", "MX", False),
     # non-US companies, including ones that say they serve the US
@@ -362,6 +365,34 @@ def test_08b_only_companies_located_in_the_us_qualify(
         assert "geography (US)" in result.rejection_reason
 
 
+def test_08g_no_address_on_generic_tld_is_a_flagged_lead(db, ps_config):
+    company = make_company(db, "acme.com")
+    result = classify(company, [
+        page("https://acme.com", _CORE, "Acme Distribution"),
+        page("https://acme.com/contact", "Call us or email the sales team."),
+    ], ps_config.excluded_business_types, config=ps_config)
+    assert result.relevant and result.country == "US"
+    assert result.country_confidence < ps.CONFIG["qualification"]["min_country_confidence"]
+    assert any(e.startswith("UNVERIFIED") for e in result.evidence["country"])
+
+
+def test_08h_unverified_location_is_opt_in():
+    from app.engine.classifier import _apply_qualification, Classification
+    strict = {"allowed_countries": ["US"], "require_country_evidence": True}
+    result = Classification(country=None)
+    _apply_qualification(result, strict, "acme.com")
+    assert not result.relevant
+    result = Classification(country=None)
+    _apply_qualification(result, {**strict, "allow_unverified_location_tlds": ["com"]},
+                         "acme.com")
+    assert result.relevant and result.country == "US"
+    # positive foreign evidence is never overridden
+    result = Classification(country="CA", country_confidence=0.9)
+    _apply_qualification(result, {**strict, "allow_unverified_location_tlds": ["com"]},
+                         "acme.com")
+    assert not result.relevant
+
+
 def test_08c_lenient_country_gate_is_unchanged_for_other_services(db, ps_config):
     """require_country_evidence is opt-in: without it, unknown location
     still passes, exactly as before."""
@@ -372,6 +403,55 @@ def test_08c_lenient_country_gate_is_unchanged_for_other_services(db, ps_config)
     _apply_qualification(result, {"allowed_countries": ["US"],
                                   "require_country_evidence": True})
     assert not result.relevant
+
+
+def test_08d_weak_signal_us_powersports_distributor_still_qualifies(db, ps_config):
+    """No cart, no shipping page, no 'dealers only' wording and a single
+    powersports marker: still a lead (ranked low), not a rejection."""
+    company = make_company(db, "trailpartsco.com")
+    pages = [page("https://trailpartsco.com",
+                  "Trail Parts Co supplies parts and accessories for UTV "
+                  "owners. New brands added every season.", "Trail Parts Co"),
+             page("https://trailpartsco.com/contact", "400 Oak St, Boise, ID 83702")]
+    result = classify(company, pages, ps_config.excluded_business_types,
+                      config=ps_config)
+    assert result.relevant, result.rejection_reason
+    assert result.is_physical_product
+    assert result.industry == "powersports"
+
+
+def test_08e_non_powersports_and_non_us_are_still_rejected(db, ps_config):
+    saas = make_company(db, "cloudbooks.com")
+    result = classify(saas, [
+        page("https://cloudbooks.com", "Cloud accounting software for small "
+             "businesses. Start your free trial.", "CloudBooks"),
+        page("https://cloudbooks.com/contact", "1 Market St, San Francisco, CA 94105"),
+    ], ps_config.excluded_business_types, config=ps_config)
+    assert not result.relevant
+    foreign = make_company(db, "quadparts.ca")
+    result = classify(foreign, [
+        page("https://quadparts.ca", "ATV and UTV parts for riders.", "Quad Parts"),
+        page("https://quadparts.ca/contact", "Toronto, ON M5V 2T6"),
+    ], ps_config.excluded_business_types, config=ps_config)
+    assert not result.relevant
+    assert "geography (US)" in result.rejection_reason
+
+
+def test_08f_industry_implies_physical_is_opt_in(db, ps_service):
+    """Without the flag, the physical-product gate behaves exactly as before."""
+    import copy
+    raw = copy.deepcopy(ps.CONFIG)
+    raw["qualification"].pop("industry_implies_physical")
+    ps_service.config = raw
+    config = build_config(db, ps_service)
+    company = make_company(db, "trailpartsco.com")
+    result = classify(company, [
+        page("https://trailpartsco.com", "Parts and accessories for UTV owners.",
+             "Trail Parts Co"),
+        page("https://trailpartsco.com/contact", "400 Oak St, Boise, ID 83702"),
+    ], config.excluded_business_types, config=config)
+    assert not result.relevant
+    assert "physical-product" in result.rejection_reason
 
 
 # ---------------------------------------------------------------------

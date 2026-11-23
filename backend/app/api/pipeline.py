@@ -67,7 +67,8 @@ def _local_process_company(company_id: str, service_slug: str,
 
 
 def _local_process_queue(service_slug: str, limit: int,
-                         max_seconds: float | None = None) -> dict:
+                         max_seconds: float | None = None,
+                         db: Session | None = None) -> dict:
     """Drain part of the queue and record the outcome.
 
     Every invocation writes a `pipeline_runs` row. Without that there is no
@@ -79,17 +80,17 @@ def _local_process_queue(service_slug: str, limit: int,
 
     from app.models import PipelineRun
 
-    with session_scope() as db:
-        config = load_service_config(db, service_slug)
+    def _execute(session: Session) -> dict:
+        config = load_service_config(session, service_slug)
         run = PipelineRun(service_id=config.id, run_type="process_queue",
                           status="running")
-        db.add(run)
-        db.flush()
+        session.add(run)
+        session.flush()
 
-        companies = queued_companies(db, limit=limit)
+        companies = queued_companies(session, limit=limit)
         try:
             batch = pipeline_engine.process_batch(
-                db, companies, config, max_seconds=max_seconds)
+                session, companies, config, max_seconds=max_seconds)
             stats = batch.as_dict()
             stats["queued_at_start"] = len(companies)
             status = "completed"
@@ -98,20 +99,24 @@ def _local_process_queue(service_slug: str, limit: int,
             stats = {"queued_at_start": len(companies)}
             status, error = "failed", f"{type(exc).__name__}: {exc}"
             log.exception("process_queue failed")
-            # The DB cancelled our statement (lock timeout, etc.), which puts
-            # the session into a rolled-back state. We must explicitly rollback
-            # before issuing any further SQL, or SQLAlchemy will raise
-            # PendingRollbackError on the db.merge() below.
-            db.rollback()
+            session.rollback()
 
         # process_batch commits per company, so re-attach the run row.
-        run = db.merge(run)
+        run = session.merge(run)
         run.status = status
         run.error = error
         run.stats = stats
         run.completed_at = datetime.now(timezone.utc)
-        db.flush()
+        session.flush()
         return stats
+
+    if db is not None:
+        stats = _execute(db)
+        db.commit()        # the request session doesn't commit on its own
+        return stats
+
+    with session_scope() as s:
+        return _execute(s)
 
 
 # ---------------------------------------------------------------------
@@ -256,7 +261,7 @@ def process_queue(payload: AnalyzeRequest,
         return TaskAccepted(accepted=False, message="No companies queued",
                             result={"queued": 0})
 
-    stats = _local_process_queue(slug, limit, max_seconds)
+    stats = _local_process_queue(slug, limit, max_seconds, db=db)
 
     still_pending = db.scalar(
         select(func.count()).select_from(Company)

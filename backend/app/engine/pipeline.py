@@ -268,10 +268,11 @@ def process_batch(db: Session, companies: list[Company], config: ServiceConfig,
             # leaves the queue and doesn't block future runs.
             try:
                 from sqlalchemy import text as _text
+                now_fn = "NOW()" if db.bind.dialect.name == "postgresql" else "CURRENT_TIMESTAMP"
                 db.execute(_text(
-                    "UPDATE companies SET status='error', "
-                    "rejection_reason='commit failed - possible lock timeout', "
-                    "updated_at=NOW() WHERE id=:id"
+                    f"UPDATE companies SET status='error', "
+                    f"rejection_reason='commit failed - possible lock timeout', "
+                    f"updated_at={now_fn} WHERE id=:id"
                 ), {"id": str(company.id)})
                 db.commit()
                 log.info("Marked %s as error after commit failure", company.domain)
