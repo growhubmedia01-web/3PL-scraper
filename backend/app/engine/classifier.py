@@ -203,11 +203,36 @@ COUNTRY_PHRASES: list[tuple[str, str]] = [
     (r"\bspain\b|\bmadrid\b|\bbarcelona\b", "ES"),
     (r"\bitaly\b|\bmilan\b|\brome\b", "IT"),
     (r"\bsweden\b|\bstockholm\b", "SE"),
+    (r"(?<!new )\bmexico\b|\bm\u00e9xico\b|\bmonterrey\b|\bguadalajara\b|"
+     r"\bcdmx\b|\btijuana\b", "MX"),
+]
+
+# US addresses. A bare 5-digit number is NOT a ZIP code on its own - Mexico,
+# Germany, France, Spain and Italy all use 5-digit postcodes - so US evidence
+# needs a state next to it: "Dallas, TX 75201", "TX 75201", "Dallas, Texas".
+_US_STATE_ABBR = ("AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|"
+                  "MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|"
+                  "SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY")
+_US_STATE_NAMES = (
+    "Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|"
+    "Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|"
+    "Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|"
+    "Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|"
+    "New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|"
+    "Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|"
+    "Virginia|Washington|West Virginia|Wisconsin|Wyoming")
+US_ADDRESS_PATTERNS: list[re.Pattern] = [
+    # state abbreviation + ZIP (case-sensitive: "IN 46204", not "in 46204")
+    re.compile(r"\b(?:" + _US_STATE_ABBR + r")\.?\s+\d{5}(?:-\d{4})?\b"),
+    # City, ST
+    re.compile(r"\b[A-Z][a-z]+(?: [A-Z][a-z]+)*,\s*(?:" + _US_STATE_ABBR + r")\b(?![a-z])"),
+    # City, Statename  /  Statename 75201
+    re.compile(r"\b[A-Z][a-z]+(?: [A-Z][a-z]+)*,\s*(?:" + _US_STATE_NAMES + r")\b"),
+    re.compile(r"\b(?:" + _US_STATE_NAMES + r")\s+\d{5}(?:-\d{4})?\b"),
 ]
 
 POSTCODE_PATTERNS: list[tuple[str, re.Pattern]] = [
     ("GB", re.compile(r"\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b")),
-    ("US", re.compile(r"\b\d{5}(?:-\d{4})?\b(?=[^\d]|$)")),
     ("CA", re.compile(r"\b[A-Z]\d[A-Z]\s?\d[A-Z]\d\b")),
 ]
 
@@ -430,36 +455,56 @@ def _detect_business_model(pages: list[ExtractedPage]
 
 def _detect_country(domain: str, pages: list[ExtractedPage]
                     ) -> tuple[str | None, float, list[str]]:
-    """Weighted vote across TLD, address text, phrases, currency."""
-    votes: dict[str, float] = {}
+    """Weighted vote across TLD, address text, phrases, currency.
+
+    Location-grade evidence (a country-code domain, a postcode, a street
+    address) says where the company IS. A country name in prose often only
+    says where it sells ("serving dealers in the US and Canada"), so when
+    location-grade evidence exists, name mentions count for much less."""
+    location: dict[str, float] = {}
+    mentions: dict[str, float] = {}
     evidence: list[str] = []
+
+    def vote(bucket: dict[str, float], code: str, weight: float) -> None:
+        bucket[code] = bucket.get(code, 0) + weight
 
     for suffix, code in TLD_COUNTRY.items():
         if domain.endswith("." + suffix):
-            votes[code] = votes.get(code, 0) + 3.0
+            vote(location, code, 3.0)
             evidence.append(f"TLD .{suffix}")
             break
-
-    text = " ".join(p.searchable for p in pages)[:60_000]
-    for pattern, code in COUNTRY_PHRASES:
-        if re.search(pattern, text, re.I):
-            votes[code] = votes.get(code, 0) + 1.5
-            evidence.append(f"text mentions {code}")
 
     contact_text = " ".join(
         p.text for p in pages if p.page_type in ("other", "about"))[:20_000]
     for code, pattern in POSTCODE_PATTERNS:
         if pattern.search(contact_text):
-            votes[code] = votes.get(code, 0) + 1.0
+            vote(location, code, 1.0)
             evidence.append(f"{code} postcode format on contact/about page")
+
+    # US street addresses usually sit in the site-wide footer, so look at the
+    # crawled pages' raw text (case-sensitive patterns, see US_ADDRESS_PATTERNS).
+    raw_text = " ".join(p.text for p in pages)[:60_000]
+    if any(pattern.search(raw_text) for pattern in US_ADDRESS_PATTERNS):
+        vote(location, "US", 2.0)
+        evidence.append("US street address (state + ZIP or City, ST)")
+
+    text = " ".join(p.searchable for p in pages)[:60_000]
+    mention_weight = 0.5 if location else 1.5
+    for pattern, code in COUNTRY_PHRASES:
+        if re.search(pattern, text, re.I):
+            vote(mentions, code, mention_weight)
+            evidence.append(f"text mentions {code}")
 
     currencies = sorted({c for p in pages for c in p.currencies})
     for currency in currencies:
         code = CURRENCY_COUNTRY.get(currency)
         if code:
-            votes[code] = votes.get(code, 0) + 0.75
+            vote(mentions, code, 0.75)
             evidence.append(f"prices in {currency}")
 
+    votes = dict(location)
+    for code, weight in mentions.items():
+        vote(votes, code, weight)
     if not votes:
         return None, 0.0, evidence
 
@@ -547,10 +592,24 @@ def _apply_qualification(result: "Classification", qualification: dict) -> None:
 
     allowed = set(qualification.get("allowed_countries") or [])
     min_conf = float(qualification.get("min_country_confidence", 0.5))
-    if (allowed and result.country and result.country not in allowed
+    geography = ", ".join(sorted(allowed))
+    if allowed and qualification.get("require_country_evidence"):
+        # Strict: the company must be positively located inside the target
+        # geography. Unknown or ambiguous location is a rejection, not a pass.
+        if result.country is None:
+            reasons.append(f"no evidence the company is located in the target "
+                           f"geography ({geography})")
+        elif result.country not in allowed:
+            reasons.append(f"country {result.country} outside the target "
+                           f"geography ({geography})")
+        elif (result.country_confidence or 0) < min_conf:
+            reasons.append(f"location evidence is ambiguous: {result.country} "
+                           f"at {result.country_confidence:.0%} confidence, "
+                           f"{min_conf:.0%} required")
+    elif (allowed and result.country and result.country not in allowed
             and (result.country_confidence or 0) >= min_conf):
         reasons.append(f"country {result.country} outside the target "
-                       f"geography ({', '.join(sorted(allowed))})")
+                       f"geography ({geography})")
 
     industry = qualification.get("required_industry")
     if industry:
